@@ -192,19 +192,28 @@ function renderKanban() {
     if (!container) return;
 
     container.innerHTML = bays.map(bay => {
-        const matchingCards = allCards.filter(c => (c.currentBay || 'Bay 1') === bay.id);
+        const matchingCards = allCards.filter(c => !isClosedCard(c) && (c.currentBay || 'Bay 1') === bay.id);
         const isReadyBay = bay.id === 'Bay 6';
 
         const cardsHtml = matchingCards.map(c => `
             <div class="bay-card" onclick="openCardInEditor('${c.id}')">
-                <div class="bay-card-plate">${escapeHtml(c.vehicle?.plateNo || 'REG-PENDING')}</div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div class="bay-card-plate">${escapeHtml(c.vehicle?.plateNo || 'REG-PENDING')}</div>
+                    <button type="button" style="background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer;" onclick="event.stopPropagation(); deleteJobCardById('${c.id}')" title="Delete Card">🗑️</button>
+                </div>
                 <div class="bay-card-model">${escapeHtml(c.vehicle?.makeModel || 'Vehicle')}</div>
                 <div class="bay-card-customer">👤 ${escapeHtml(c.customer?.name || 'Walk-in')}</div>
                 <div class="bay-card-status">
                     <span class="status-tag ${c.status === 'Ready' ? 'ready' : 'in-progress'}">${c.status || 'In Progress'}</span>
-                    <button type="button" class="btn-secondary" style="padding:2px 8px; font-size:10px;" onclick="event.stopPropagation(); quickAdvanceBay('${c.id}', '${bay.id}')">
-                        Move Next ➔
-                    </button>
+                    ${isReadyBay ? `
+                        <button type="button" class="btn-success" style="padding:2px 7px; font-size:10px;" onclick="event.stopPropagation(); closeJobCardPayment('${c.id}')" title="Clear Payment and Remove from TV">
+                            💳 Clear &amp; Close
+                        </button>
+                    ` : `
+                        <button type="button" class="btn-secondary" style="padding:2px 8px; font-size:10px;" onclick="event.stopPropagation(); quickAdvanceBay('${c.id}', '${bay.id}')">
+                            Move Next ➔
+                        </button>
+                    `}
                 </div>
             </div>
         `).join('');
@@ -238,6 +247,27 @@ async function quickAdvanceBay(cardId, currentBay) {
 // ==========================================================================
 // 5. JOB CARDS DATABASE TABLE & FILTER
 // ==========================================================================
+let activeStatusFilter = 'active'; // 'active' | 'closed' | 'all'
+
+function isClosedCard(c) {
+    if (!c) return false;
+    const s = (c.status || '').toLowerCase().trim();
+    const b = (c.currentBay || '').toLowerCase().trim();
+    return s === 'completed' || s === 'delivered' || s === 'closed' || s === 'cancelled' ||
+           s.includes('paid') || s.includes('closed') || b.includes('closed') || c.paymentCleared === true;
+}
+
+function setStatusViewFilter(filter) {
+    activeStatusFilter = filter;
+    document.querySelectorAll('.daily-status-tab').forEach(el => {
+        el.classList.remove('active');
+    });
+    if (filter === 'active') document.getElementById('tabActiveJobs')?.classList.add('active');
+    if (filter === 'closed') document.getElementById('tabClosedJobs')?.classList.add('active');
+    if (filter === 'all') document.getElementById('tabAllJobs')?.classList.add('active');
+    renderTable();
+}
+
 function setDeptFilter(dept) {
     activeDeptFilter = dept;
     document.querySelectorAll('.dept-pill').forEach(el => {
@@ -255,12 +285,30 @@ function renderTable() {
     const tbody = document.getElementById('jobCardsTableBody');
     if (!tbody) return;
 
+    // Update count badges
+    const activeCount = allCards.filter(c => !isClosedCard(c)).length;
+    const closedCount = allCards.filter(c => isClosedCard(c)).length;
+    const allCount = allCards.length;
+
+    if (document.getElementById('countActiveJobs')) document.getElementById('countActiveJobs').textContent = activeCount;
+    if (document.getElementById('countClosedJobs')) document.getElementById('countClosedJobs').textContent = closedCount;
+    if (document.getElementById('countAllJobs')) document.getElementById('countAllJobs').textContent = allCount;
+
     let filtered = allCards;
 
+    // 1. Status Filter (Today's Active vs Closed Archive vs All)
+    if (activeStatusFilter === 'active') {
+        filtered = filtered.filter(c => !isClosedCard(c));
+    } else if (activeStatusFilter === 'closed') {
+        filtered = filtered.filter(c => isClosedCard(c));
+    }
+
+    // 2. Department Filter
     if (activeDeptFilter !== 'all') {
         filtered = filtered.filter(c => (c.departments || []).includes(activeDeptFilter));
     }
 
+    // 3. Search Query Filter
     if (searchQuery) {
         filtered = filtered.filter(c => {
             const plate = (c.vehicle?.plateNo || '').toLowerCase();
@@ -272,10 +320,13 @@ function renderTable() {
     }
 
     if (filtered.length === 0) {
+        const msg = activeStatusFilter === 'closed' ? 'No closed or paid job cards found.' : 
+                    activeStatusFilter === 'active' ? 'No active vehicle jobs in the workshop bays today.' : 
+                    'No job cards found matching your criteria.';
         tbody.innerHTML = `
             <tr>
                 <td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">
-                    No job cards found matching your criteria.
+                    ${msg}
                 </td>
             </tr>
         `;
@@ -283,10 +334,14 @@ function renderTable() {
     }
 
     tbody.innerHTML = filtered.map(c => {
-        const isReady = c.status === 'Ready' || c.currentBay === 'Bay 6';
+        const isClosed = isClosedCard(c);
+        const isReady = (c.status === 'Ready' || c.currentBay === 'Bay 6') && !isClosed;
         return `
-            <tr>
-                <td style="font-weight:800; color:#162544;">${c.id}</td>
+            <tr style="${isClosed ? 'background-color:#fafafa; opacity:0.85;' : ''}">
+                <td style="font-weight:800; color:#162544;">
+                    ${c.id}
+                    ${isClosed ? '<div style="font-size:10px; color:#15803d; font-weight:700;">✓ PAID & CLOSED</div>' : ''}
+                </td>
                 <td>
                     <span style="display:inline-block; background:#0f172a; color:#fff; font-weight:800; padding:2px 7px; border-radius:4px; font-size:11px;">
                         ${escapeHtml(c.vehicle?.plateNo || '-')}
@@ -298,37 +353,105 @@ function renderTable() {
                     <div style="font-size:11px; color:#64748b;">${escapeHtml(c.customer?.phone || '-')}</div>
                 </td>
                 <td>
-                    <select onchange="updateCardBay('${c.id}', this.value)" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; font-weight:700; background:#f8fafc;">
-                        <option value="Bay 1" ${c.currentBay === 'Bay 1' ? 'selected' : ''}>Bay 1: Diagnostics</option>
-                        <option value="Bay 2" ${c.currentBay === 'Bay 2' ? 'selected' : ''}>Bay 2: Electrical & AC</option>
-                        <option value="Bay 3" ${c.currentBay === 'Bay 3' ? 'selected' : ''}>Bay 3: Suspension & Brakes</option>
-                        <option value="Bay 4" ${c.currentBay === 'Bay 4' ? 'selected' : ''}>Bay 4: Denting & Body</option>
-                        <option value="Bay 5" ${c.currentBay === 'Bay 5' ? 'selected' : ''}>Bay 5: Detailing & Wash</option>
-                        <option value="Bay 6" ${c.currentBay === 'Bay 6' ? 'selected' : ''}>Bay 6: Ready for Delivery</option>
-                    </select>
+                    ${isClosed ? `
+                        <span style="font-size:11.5px; font-weight:700; color:#15803d;">Delivered (Accounts Settled)</span>
+                    ` : `
+                        <select onchange="updateCardBay('${c.id}', this.value)" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; font-weight:700; background:#f8fafc;">
+                            <option value="Bay 1" ${c.currentBay === 'Bay 1' ? 'selected' : ''}>Bay 1: Diagnostics</option>
+                            <option value="Bay 2" ${c.currentBay === 'Bay 2' ? 'selected' : ''}>Bay 2: Electrical & AC</option>
+                            <option value="Bay 3" ${c.currentBay === 'Bay 3' ? 'selected' : ''}>Bay 3: Suspension & Brakes</option>
+                            <option value="Bay 4" ${c.currentBay === 'Bay 4' ? 'selected' : ''}>Bay 4: Denting & Body</option>
+                            <option value="Bay 5" ${c.currentBay === 'Bay 5' ? 'selected' : ''}>Bay 5: Detailing & Wash</option>
+                            <option value="Bay 6" ${c.currentBay === 'Bay 6' ? 'selected' : ''}>Bay 6: Ready for Delivery</option>
+                        </select>
+                    `}
                 </td>
                 <td>
-                    <span class="status-tag ${isReady ? 'ready' : 'in-progress'}">
-                        ${isReady ? 'Ready' : (c.status || 'In Progress')}
+                    <span class="status-tag ${isClosed ? 'closed' : (isReady ? 'ready' : 'in-progress')}">
+                        ${isClosed ? 'Closed & Paid' : (isReady ? 'Ready' : (c.status || 'In Progress'))}
                     </span>
                 </td>
                 <td style="font-weight:800; color:#162544; text-align:right;">
                     Rs. ${Number(c.netPayable || 0).toLocaleString()}
                 </td>
-                <td style="text-align:right;">
-                    <button type="button" class="btn-secondary" style="padding:5px 10px; font-size:12px;" onclick="printJobCardNativeById('${c.id}')" title="Print Official A4">
-                        🖨️ Print
+                <td style="text-align:right; white-space:nowrap;">
+                    ${!isClosed ? `
+                        <button type="button" class="btn-success" style="padding:4px 8px; font-size:11px;" onclick="closeJobCardPayment('${c.id}')" title="Clear payment and remove from TV screen">
+                            💳 Mark Paid & Close
+                        </button>
+                    ` : `
+                        <button type="button" class="btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="reopenJobCard('${c.id}')" title="Reopen card">
+                            🔄 Reopen
+                        </button>
+                    `}
+                    <button type="button" class="btn-secondary" style="padding:4px 7px; font-size:11px; margin-left:3px;" onclick="printJobCardNativeById('${c.id}')" title="Print Official A4">
+                        🖨️
                     </button>
-                    <button type="button" class="btn-secondary" style="padding:5px 10px; font-size:12px; margin-left:4px;" onclick="downloadJobCardPdfById('${c.id}')" title="Download PDF">
-                        📄 PDF
+                    <button type="button" class="btn-secondary" style="padding:4px 7px; font-size:11px; margin-left:3px;" onclick="downloadJobCardPdfById('${c.id}')" title="Download PDF">
+                        📄
                     </button>
-                    <button type="button" class="btn-primary" style="padding:5px 10px; font-size:12px; margin-left:4px;" onclick="openCardInEditor('${c.id}')" title="Edit">
-                        ✏️ Edit
+                    <button type="button" class="btn-primary" style="padding:4px 8px; font-size:11px; margin-left:3px;" onclick="openCardInEditor('${c.id}')" title="Edit">
+                        ✏️
+                    </button>
+                    <button type="button" class="btn-danger" style="padding:4px 8px; font-size:11px; margin-left:3px;" onclick="deleteJobCardById('${c.id}')" title="Delete permanently (if created by mistake or cancelled)">
+                        🗑️
                     </button>
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+async function closeJobCardPayment(cardId) {
+    const card = allCards.find(c => c.id === cardId);
+    if (!card) return;
+    const plate = card.vehicle?.plateNo || cardId;
+    const conf = confirm(`Mark Job Card ${cardId} (${plate}) as PAID & DELIVERED?\n\nThis will clear payment and remove the vehicle from the Waiting Lounge TV Screen.`);
+    if (!conf) return;
+
+    card.status = 'Paid & Delivered';
+    card.currentBay = 'Delivered (Closed)';
+    card.paymentCleared = true;
+    card.closedAt = new Date().toISOString();
+
+    if (window.HubAPI) {
+        await window.HubAPI.saveJobCard(card);
+        await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
+    }
+    await refreshDashboard();
+    if (window.showToast) window.showToast(`Job Card ${cardId} closed & cleared. Removed from Lounge TV!`, 'success');
+}
+
+async function reopenJobCard(cardId) {
+    const card = allCards.find(c => c.id === cardId);
+    if (!card) return;
+    card.status = 'In Progress';
+    card.currentBay = 'Bay 1';
+    card.paymentCleared = false;
+    delete card.closedAt;
+
+    if (window.HubAPI) {
+        await window.HubAPI.saveJobCard(card);
+        await window.HubAPI.updateBay(cardId, 'Bay 1', 'In Progress');
+    }
+    await refreshDashboard();
+    if (window.showToast) window.showToast(`Job Card ${cardId} reopened into Bay 1.`, 'info');
+}
+
+async function deleteJobCardById(cardId) {
+    const card = allCards.find(c => c.id === cardId);
+    const plate = card?.vehicle?.plateNo || cardId;
+    const conf = confirm(`Are you sure you want to DELETE Job Card ${cardId} (${plate})?\n\nChoose OK if the client cancelled or if this card was created by mistake. This will permanently remove the record.`);
+    if (!conf) return;
+
+    if (window.HubAPI) {
+        await window.HubAPI.deleteJobCard(cardId);
+    } else {
+        allCards = allCards.filter(c => c.id !== cardId);
+        localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(allCards));
+    }
+    await refreshDashboard();
+    if (window.showToast) window.showToast(`Job Card ${cardId} permanently deleted.`, 'info');
 }
 
 async function updateCardBay(cardId, bay) {
@@ -396,6 +519,10 @@ window.handleSearch = handleSearch;
 window.openSettingsModal = openSettingsModal;
 window.closeSettingsModal = closeSettingsModal;
 window.saveGeminiSettings = saveGeminiSettings;
+window.setStatusViewFilter = setStatusViewFilter;
+window.closeJobCardPayment = closeJobCardPayment;
+window.reopenJobCard = reopenJobCard;
+window.deleteJobCardById = deleteJobCardById;
 window.handleStaffLoginSubmit = handleStaffLoginSubmit;
 window.quickLoginStaff = quickLoginStaff;
 window.staffLogout = staffLogout;

@@ -2570,7 +2570,11 @@
         // KPI STATISTICS & KANBAN BAY BOARD
         // ==========================================
         function updateKpis() {
-            const activeCards = jobCards.filter(j => j.status !== 'Delivered');
+            const activeCards = jobCards.filter(j => {
+                const s = (j.status || '').toLowerCase().trim();
+                const b = (j.bay || '').toLowerCase().trim();
+                return s !== 'delivered' && s !== 'completed' && s !== 'closed' && !s.includes('paid') && !s.includes('closed') && !b.includes('closed') && j.paymentCleared !== true;
+            });
             const total = activeCards.length;
             const inService = activeCards.filter(j => j.status !== 'Ready').length;
             const ready = activeCards.filter(j => j.status === 'Ready').length;
@@ -2719,6 +2723,11 @@
                             <span class="status-pill ${statusClass}">${job.status}</span>
                         </td>
                         <td style="text-align:right; white-space:nowrap;">
+                            ${(job.status !== 'Delivered' && !String(job.status).includes('Paid') && !String(job.status).includes('Closed')) ? `
+                                <button class="btn btn-sm" style="background:#16a34a; color:#fff; font-size:11px; padding:3px 7px;" onclick="closeJobCardPayment('${job.id}')" title="Clear payment & remove from TV"><i class="fa-solid fa-credit-card"></i> Paid &amp; Close</button>
+                            ` : `
+                                <span style="font-size:10px; color:#16a34a; font-weight:bold; margin-right:4px;">✓ Paid</span>
+                            `}
                             <button class="btn btn-navy btn-sm" onclick="printJobCard('${job.id}')" title="Print A4"><i class="fa-solid fa-print"></i></button>
                             <button class="btn btn-emerald btn-sm" onclick="exportPDFDirect('${job.id}')" title="Download PDF"><i class="fa-solid fa-file-pdf"></i></button>
                             <button class="btn btn-outline btn-sm" onclick="editJobCard('${job.id}')" title="Edit on Tablet"><i class="fa-solid fa-pen"></i></button>
@@ -2758,6 +2767,40 @@
             } else {
                 showToast(`Vehicle ${card.vehicle?.plateNo} moved to ${newBay}`, 'info');
             }
+        }
+
+        
+        function closeJobCardPayment(id) {
+            const card = jobCards.find(j => j.id === id);
+            if (!card) return;
+            const plate = card.vehicle?.plateNo || card.id;
+            if (confirm(`Mark Job Card ${card.id} (${plate}) as PAID & DELIVERED?\n\nThis will clear payment and remove the vehicle from the Waiting Lounge TV screen.`)) {
+                card.status = 'Delivered';
+                card.bay = 'Delivered (Closed)';
+                card.paymentCleared = true;
+                card.closedAt = new Date().toISOString();
+                saveToLocalStorage();
+                renderTable();
+                renderKanban();
+                renderTvQueue();
+                broadcastSyncEvent('CARD_SAVED', { id: card.id, isReady: false });
+                showToast(`Job Card ${card.id} marked as Paid & Closed. Removed from TV queue!`, 'success');
+            }
+        }
+
+        function deleteCurrentActiveJobCard() {
+            if (!activeJobId) {
+                showView('dbView');
+                return;
+            }
+            deleteJobCard(activeJobId);
+            showView('dbView');
+        }
+
+        function closeCurrentJobCardPayment() {
+            if (!activeJobId) return;
+            closeJobCardPayment(activeJobId);
+            showView('dbView');
         }
 
         function deleteJobCard(id) {

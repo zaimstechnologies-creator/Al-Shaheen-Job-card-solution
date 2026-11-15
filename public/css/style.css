@@ -284,6 +284,94 @@ body {
     border-color: #cbd5e1;
 }
 
+.btn-danger {
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
+    padding: 7px 14px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #b91c1c;
+}
+
+.btn-success {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+    padding: 7px 14px;
+    border-radius: var(--radius-md);
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-success:hover {
+    background: #15803d;
+    color: #ffffff;
+    border-color: #166534;
+}
+
+.daily-status-tab {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.daily-status-tab:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.daily-status-tab.active {
+    background: #162544;
+    color: #ffffff;
+    border-color: #162544;
+    box-shadow: 0 2px 8px rgba(22, 37, 68, 0.25);
+}
+
+.daily-badge {
+    padding: 2px 7px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.daily-status-tab.active .daily-badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+.status-tag.closed {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+
 .btn-gold {
     background: linear-gradient(135deg, #d4a047 0%, var(--gold-accent) 100%);
     color: #fff;

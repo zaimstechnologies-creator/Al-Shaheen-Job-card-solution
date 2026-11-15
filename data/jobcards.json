@@ -1,5 +1,82 @@
 [
   {
+    "id": "ASH-570539",
+    "createdAt": "2026-11-15T11:04:15.778Z",
+    "deliveryDue": "2026-11-15T16:04:15.778Z",
+    "status": "Ready",
+    "currentBay": "Bay 6",
+    "customer": {
+      "name": "Ali",
+      "phone": "03364331888",
+      "address": "Lahore"
+    },
+    "vehicle": {
+      "plateNo": "AQP 007",
+      "makeModel": "Kia Sportage",
+      "mileage": "55000",
+      "color": "White",
+      "fuelLevel": 15
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "Mechanical"
+    ],
+    "concern": "Gari aik trf khud ko khainchti hai, jhatky ly kr chlti hai, gear shift main b masla hai, kbhi kbhi tu 3rd gear sahi lag jata hai kabhi kabhi phas jata hai,",
+    "workToBeDone": "1. Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends; perform 3D computerized wheel alignment and calibrate steering angle sensor.\n2. Perform complete EFI diagnostic tune-up: scan OBD-II for misfire codes, replace fouled spark plugs, chemically clean fuel injectors, and service throttle body.\n3. Inspect manual transmission and clutch assembly: check gear linkage cable alignment, drain and refill burnt gear oil, remove gearbox to inspect/replace worn 3rd gear synchronizer brass ring and clutch release bearing.",
+    "parts": [
+      {
+        "desc": "Front Lower Control Arm Bushings Set",
+        "qty": 1,
+        "rate": 0,
+        "amount": 0
+      },
+      {
+        "desc": "Tie Rod Ends (Pair)",
+        "qty": 1,
+        "rate": 0,
+        "amount": 0
+      },
+      {
+        "desc": "OEM Spark Plugs Set",
+        "qty": 1,
+        "rate": 0,
+        "amount": 0
+      },
+      {
+        "desc": "Throttle Body & Carb Cleaner Spray",
+        "qty": 2,
+        "rate": 0,
+        "amount": 0
+      },
+      {
+        "desc": "3rd Gear Synchronizer Brass Ring",
+        "qty": 1,
+        "rate": 0,
+        "amount": 0
+      },
+      {
+        "desc": "Manual Transmission Gear Oil (75W-90) - 1L",
+        "qty": 3,
+        "rate": 0,
+        "amount": 0
+      }
+    ],
+    "labour": 0,
+    "otherCharges": 0,
+    "discount": 0,
+    "advance": 0,
+    "subTotal": 0,
+    "netPayable": 0,
+    "balance": 0,
+    "serviceAdvisor": "Service Incharge",
+    "damageMarkers": []
+  },
+  {
     "id": "ASH-000126",
     "createdAt": "2026-11-15T12:59:00.000Z",
     "deliveryDue": "2026-11-15T17:30:00.000Z",

@@ -119,7 +119,53 @@ function loadCardIntoEditor(card) {
     const advPayEl = document.getElementById('cardAdvance');
     if (advPayEl) advPayEl.value = activeCard.advance || 0;
 
-    // Fuel Slider
+    // ==========================================================================
+// 6. DELETE & CLOSE PAYMENT WORKFLOWS
+// ==========================================================================
+async function deleteActiveJobCard() {
+    if (!activeCard || !activeCard.id) {
+        if (window.showView) window.showView('dbView');
+        return;
+    }
+    const cardId = activeCard.id;
+    const plate = activeCard.vehicle?.plateNo || 'Vehicle';
+    const conf = confirm(`Are you sure you want to DELETE Job Card ${cardId} (${plate})?\n\nChoose OK if the client cancelled or if this card was created by mistake. This will permanently remove the record.`);
+    if (!conf) return;
+
+    if (window.HubAPI) {
+        await window.HubAPI.deleteJobCard(cardId);
+    }
+    showToast(`Job Card ${cardId} deleted.`, 'info');
+    activeCard = null;
+    if (window.refreshDashboard) await window.refreshDashboard();
+    if (window.showView) window.showView('dbView');
+}
+
+async function closeActiveJobCardPayment() {
+    if (!activeCard || !activeCard.id) return;
+    const cardId = activeCard.id;
+    const plate = activeCard.vehicle?.plateNo || 'Vehicle';
+    const conf = confirm(`Clear payment and mark Job Card ${cardId} (${plate}) as PAID & DELIVERED?\n\nThis vehicle will be closed and removed from the Waiting Lounge TV screen.`);
+    if (!conf) return;
+
+    activeCard.status = 'Paid & Delivered';
+    activeCard.currentBay = 'Delivered (Closed)';
+    activeCard.paymentCleared = true;
+    activeCard.closedAt = new Date().toISOString();
+
+    const statusSel = document.getElementById('cardStatusSelect');
+    if (statusSel) statusSel.value = 'Paid & Delivered';
+
+    if (window.HubAPI) {
+        await window.HubAPI.saveJobCard(activeCard);
+        await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
+    }
+    showToast(`Job Card ${cardId} marked as Paid & Closed. Removed from Lounge TV queue!`, 'success');
+    if (window.refreshDashboard) await window.refreshDashboard();
+    if (window.showView) window.showView('dbView');
+}
+
+// Fuel Slider
     const fuelSlider = document.getElementById('cardFuelSlider');
     if (fuelSlider) {
         fuelSlider.value = activeCard.vehicle?.fuelLevel || 50;
@@ -725,6 +771,52 @@ function calcAllTotals() {
     if (document.getElementById('totalBalanceDisplay')) document.getElementById('totalBalanceDisplay').textContent = `Rs. ${balance.toLocaleString()}`;
 }
 
+// ==========================================================================
+// 6. DELETE & CLOSE PAYMENT WORKFLOWS
+// ==========================================================================
+async function deleteActiveJobCard() {
+    if (!activeCard || !activeCard.id) {
+        if (window.showView) window.showView('dbView');
+        return;
+    }
+    const cardId = activeCard.id;
+    const plate = activeCard.vehicle?.plateNo || 'Vehicle';
+    const conf = confirm(`Are you sure you want to DELETE Job Card ${cardId} (${plate})?\n\nChoose OK if the client cancelled or if this card was created by mistake. This will permanently remove the record.`);
+    if (!conf) return;
+
+    if (window.HubAPI) {
+        await window.HubAPI.deleteJobCard(cardId);
+    }
+    showToast(`Job Card ${cardId} deleted.`, 'info');
+    activeCard = null;
+    if (window.refreshDashboard) await window.refreshDashboard();
+    if (window.showView) window.showView('dbView');
+}
+
+async function closeActiveJobCardPayment() {
+    if (!activeCard || !activeCard.id) return;
+    const cardId = activeCard.id;
+    const plate = activeCard.vehicle?.plateNo || 'Vehicle';
+    const conf = confirm(`Clear payment and mark Job Card ${cardId} (${plate}) as PAID & DELIVERED?\n\nThis vehicle will be closed and removed from the Waiting Lounge TV screen.`);
+    if (!conf) return;
+
+    activeCard.status = 'Paid & Delivered';
+    activeCard.currentBay = 'Delivered (Closed)';
+    activeCard.paymentCleared = true;
+    activeCard.closedAt = new Date().toISOString();
+
+    const statusSel = document.getElementById('cardStatusSelect');
+    if (statusSel) statusSel.value = 'Paid & Delivered';
+
+    if (window.HubAPI) {
+        await window.HubAPI.saveJobCard(activeCard);
+        await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
+    }
+    showToast(`Job Card ${cardId} marked as Paid & Closed. Removed from Lounge TV queue!`, 'success');
+    if (window.refreshDashboard) await window.refreshDashboard();
+    if (window.showView) window.showView('dbView');
+}
+
 // Fuel Slider
 function initFuelSlider() {
     const slider = document.getElementById('cardFuelSlider');
@@ -763,4 +855,6 @@ window.runGeminiDiagnosis = runGeminiDiagnosis;
 window.selectMarkerTool = selectMarkerTool;
 window.undoDamageMarker = undoDamageMarker;
 window.clearDamageMarkers = clearDamageMarkers;
+window.deleteActiveJobCard = deleteActiveJobCard;
+window.closeActiveJobCardPayment = closeActiveJobCardPayment;
 window.showToast = showToast;

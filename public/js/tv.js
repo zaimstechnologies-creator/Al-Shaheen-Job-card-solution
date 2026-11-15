@@ -141,8 +141,14 @@ function renderQueueList(cards) {
 
     if (!listEl) return;
 
-    // Filter cards for TV (Active vehicles only)
-    const activeCards = cards.filter(c => c.status !== 'Completed' && c.status !== 'Delivered');
+    // Filter cards for TV (Only show Active & Ready vehicles, exclude Closed, Paid, Delivered, Cancelled)
+    const activeCards = cards.filter(c => {
+        const s = (c.status || '').toLowerCase().trim();
+        const b = (c.currentBay || '').toLowerCase().trim();
+        const isClosed = s === 'completed' || s === 'delivered' || s === 'closed' || s === 'cancelled' || 
+                         s.includes('paid') || s.includes('closed') || b.includes('closed') || c.paymentCleared === true;
+        return !isClosed;
+    });
     const inServiceCars = activeCards.filter(c => c.status !== 'Ready' && c.currentBay !== 'Bay 6');
     const readyCars = activeCards.filter(c => c.status === 'Ready' || c.currentBay === 'Bay 6');
 

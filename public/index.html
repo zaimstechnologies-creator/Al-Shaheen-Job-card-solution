@@ -354,6 +354,24 @@
                 <!-- VIEW 2: JOB CARDS DATABASE -->
                 <section id="dbView" style="display:none;">
                     <div class="table-section">
+                        <!-- Daily Lifecycle Filter Tabs -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px; border-bottom:1px solid #e2e8f0; padding-bottom:14px;">
+                            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                                <button type="button" class="daily-status-tab active" id="tabActiveJobs" onclick="setStatusViewFilter('active')">
+                                    🚗 Today's Active Vehicles <span class="daily-badge" id="countActiveJobs">0</span>
+                                </button>
+                                <button type="button" class="daily-status-tab" id="tabClosedJobs" onclick="setStatusViewFilter('closed')">
+                                    ✅ Closed &amp; Paid Today <span class="daily-badge" id="countClosedJobs">0</span>
+                                </button>
+                                <button type="button" class="daily-status-tab" id="tabAllJobs" onclick="setStatusViewFilter('all')">
+                                    📁 All Records Archive <span class="daily-badge" id="countAllJobs">0</span>
+                                </button>
+                            </div>
+                            <div style="font-size:12px; color:#64748b; font-weight:600;">
+                                💡 <em>Closed vehicles are automatically removed from Lounge TV screen after payment clearance</em>
+                            </div>
+                        </div>
+
                         <div class="table-header-bar">
                             <div class="dept-pills">
                                 <button type="button" class="dept-pill active" data-dept="all" onclick="setDeptFilter('all')">All Departments</button>
@@ -361,7 +379,7 @@
                                 <button type="button" class="dept-pill" data-dept="Electrical" onclick="setDeptFilter('Electrical')">Electrical</button>
                                 <button type="button" class="dept-pill" data-dept="AC Service" onclick="setDeptFilter('AC Service')">AC Service</button>
                                 <button type="button" class="dept-pill" data-dept="Alignment" onclick="setDeptFilter('Alignment')">Alignment</button>
-                                <button type="button" class="dept-pill" data-dept="Car Wash" onclick="setDeptFilter('Car Wash')">Wash & Detailing</button>
+                                <button type="button" class="dept-pill" data-dept="Car Wash" onclick="setDeptFilter('Car Wash')">Wash &amp; Detailing</button>
                             </div>
                             <button type="button" class="btn-primary" onclick="createNewCard()">
                                 ➕ New Job Card
@@ -395,8 +413,10 @@
                                 <h2 style="font-size:18px; font-weight:800; color:var(--navy-dark);" id="editorJobCardId">JOB CARD EDITOR</h2>
                                 <p style="font-size:12px; color:#64748b;">Complete vehicle intake, speech-to-text concern, AI diagnosis, and parts estimate</p>
                             </div>
-                            <div style="display:flex; gap:10px;">
-                                <button type="button" class="btn-secondary" onclick="showView('dbView')">Cancel</button>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button type="button" class="btn-danger" onclick="deleteActiveJobCard()" title="Permanently delete if cancelled or created by mistake">🗑️ Delete Card</button>
+                                <button type="button" class="btn-success" onclick="closeActiveJobCardPayment()" title="Clear payment and remove from Lounge TV screen">💳 Mark Paid &amp; Close</button>
+                                <button type="button" class="btn-secondary" onclick="showView('dbView')">Back</button>
                                 <button type="button" class="btn-secondary" onclick="printActiveJobCard()">🖨️ Print A4</button>
                                 <button type="button" class="btn-secondary" onclick="downloadActiveJobCardPdf()">📄 Download PDF</button>
                                 <button type="button" class="btn-primary" onclick="saveActiveJobCard()">💾 Save Job Card</button>
@@ -456,9 +476,10 @@
                                     <div class="form-group">
                                         <label>Workflow Status</label>
                                         <select id="cardStatusSelect" class="form-control" style="font-weight:700;">
-                                            <option value="In Progress">In Progress</option>
-                                            <option value="Ready">Ready for Collection</option>
-                                            <option value="Completed">Completed / Invoiced</option>
+                                            <option value="In Progress">⚙️ In Progress (Active in Bay &amp; TV)</option>
+                                            <option value="Ready">🔔 Ready for Collection (Alerts TV &amp; Chime)</option>
+                                            <option value="Paid &amp; Delivered">💳 Paid &amp; Delivered (Closed - Off TV)</option>
+                                            <option value="Cancelled">❌ Cancelled / Void</option>
                                         </select>
                                     </div>
                                 </div>
@@ -617,8 +638,10 @@
                         </div>
 
                         <div class="editor-actions">
-                            <button type="button" class="btn-secondary" onclick="showView('dbView')">Cancel & Back</button>
-                            <div style="display:flex; gap:10px;">
+                            <button type="button" class="btn-secondary" onclick="showView('dbView')">Cancel &amp; Back</button>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button type="button" class="btn-danger" onclick="deleteActiveJobCard()" title="Permanently delete if cancelled or created by mistake">🗑️ Delete Card</button>
+                                <button type="button" class="btn-success" onclick="closeActiveJobCardPayment()" title="Clear payment and remove from Lounge TV screen">💳 Mark Paid &amp; Close</button>
                                 <button type="button" class="btn-secondary" onclick="printActiveJobCard()">🖨️ Print A4</button>
                                 <button type="button" class="btn-secondary" onclick="downloadActiveJobCardPdf()">📄 Download PDF</button>
                                 <button type="button" class="btn-primary" onclick="saveActiveJobCard()">💾 Save Job Card</button>
