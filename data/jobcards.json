@@ -3,8 +3,8 @@
     "id": "ASH-414288",
     "createdAt": "2026-11-15T11:50:53.606Z",
     "deliveryDue": "2026-11-15T16:50:53.606Z",
-    "status": "In Progress",
-    "currentBay": "Bay 2",
+    "status": "Paid & Delivered",
+    "currentBay": "Delivered (Closed)",
     "customer": {
       "name": "Haider",
       "phone": "03364331888",
@@ -55,14 +55,16 @@
         "x": 0.09521736476732337,
         "y": 0.5921738334324049
       }
-    ]
+    ],
+    "paymentCleared": true,
+    "closedAt": "2026-11-15T11:54:25.647Z"
   },
   {
     "id": "ASH-829104",
     "createdAt": "2026-11-15T09:15:00.000Z",
     "deliveryDue": "2026-11-15T17:30:00.000Z",
-    "status": "Ready",
-    "currentBay": "Bay 6",
+    "status": "Paid & Delivered",
+    "currentBay": "Delivered (Closed)",
     "customer": {
       "name": "Hamza Tariq",
       "phone": "0321-4455667",
@@ -117,14 +119,16 @@
     "netPayable": 27500,
     "balance": 17500,
     "serviceAdvisor": "Service Incharge",
-    "damageMarkers": []
+    "damageMarkers": [],
+    "paymentCleared": true,
+    "closedAt": "2026-11-15T11:54:28.812Z"
   },
   {
     "id": "ASH-642109",
     "createdAt": "2026-11-15T10:30:00.000Z",
     "deliveryDue": "2026-11-15T18:00:00.000Z",
-    "status": "In Progress",
-    "currentBay": "Bay 1",
+    "status": "Paid & Delivered",
+    "currentBay": "Delivered (Closed)",
     "customer": {
       "name": "Usman Malik",
       "phone": "0300-8877665",
@@ -171,7 +175,9 @@
     "netPayable": 18700,
     "balance": 13700,
     "serviceAdvisor": "Service Incharge",
-    "damageMarkers": []
+    "damageMarkers": [],
+    "paymentCleared": true,
+    "closedAt": "2026-11-15T11:54:30.207Z"
   },
   {
     "id": "ASH-570539",

@@ -416,7 +416,7 @@ Return STRICTLY a JSON object with this exact schema:
   ],
   "estimatedLabour": 6500
 }`;
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -428,7 +428,7 @@ Return STRICTLY a JSON object with this exact schema:
                     const data = await resp.json();
                     const text = data.candidates[0].content.parts[0].text;
                     aiResult = JSON.parse(text);
-                    sourceText = 'Google Gemini 2.5 Flash';
+                    sourceText = 'Google Gemini AI (Live)';
                 }
             } catch (directAiErr) {
                 console.warn('Direct Gemini call failed:', directAiErr.message);
@@ -452,17 +452,30 @@ Return STRICTLY a JSON object with this exact schema:
                 if (!activeCard) createNewCard();
                 activeCard.parts = [];
                 aiResult.recommendedParts.forEach(p => {
-                    addPartRow(p.desc, p.qty || 1, p.estimatedRate || 3500);
+                    activeCard.parts.push({
+                        desc: p.desc,
+                        qty: Number(p.qty) || 1,
+                        rate: Number(p.estimatedRate || p.rate) || 0,
+                        amount: (Number(p.qty) || 1) * (Number(p.estimatedRate || p.rate) || 0)
+                    });
                 });
+                renderPartsTable();
             }
 
             if (aiResult.estimatedLabour) {
                 const labourField = document.getElementById('cardLabour');
                 if (labourField) {
                     labourField.value = aiResult.estimatedLabour;
-                    calcAllTotals();
                 }
             }
+
+            if (Array.isArray(aiResult.departments) && aiResult.departments.length > 0) {
+                document.querySelectorAll('.dept-checkbox').forEach(cb => {
+                    cb.checked = aiResult.departments.includes(cb.value);
+                });
+            }
+
+            calcAllTotals();
 
             if (aiStatus) {
                 aiStatus.style.background = '#dcfce7';
@@ -489,58 +502,192 @@ function generateClientAutomotiveDiagnosis(concern, makeModel) {
     const text = (concern || '').toLowerCase();
     const parts = [];
     const tasks = [];
-    let labour = 3500;
+    const matchedDepts = new Set(['General Service']);
+    let labour = 2500;
 
-    const hasPulling = text.includes('khainch') || text.includes('pull') || text.includes('alignment') || text.includes('side');
-    const hasJerking = text.includes('jhatk') || text.includes('jerk') || text.includes('misfire') || text.includes('chlti');
-    const hasGearIssue = text.includes('gear') || text.includes('3rd') || text.includes('clutch') || text.includes('phas');
-    const hasNoise = text.includes('awaz') || text.includes('sound') || text.includes('tik') || text.includes('khad');
-    const hasAC = text.includes('ac') || text.includes('cooling') || text.includes('hawa');
+    // 1. Smell / Interior Cleaning / Detailing / Spills / Odor
+    const hasSmell = text.includes('smell') || text.includes('badbu') || text.includes('gir') || text.includes('clean') ||
+                     text.includes('wash') || text.includes('detail') || text.includes('stain') || text.includes('carpet') ||
+                     text.includes('seat') || text.includes('chahing') || text.includes('gand') || text.includes('odor') || text.includes('safai');
+
+    // 2. Wheel Alignment / Steering Pulling
+    const hasPulling = text.includes('khainch') || text.includes('pull') || text.includes('alignment') || text.includes('side') ||
+                       text.includes('ek taraf') || text.includes('steering') || text.includes('teerha') || text.includes('lehrana');
+
+    // 3. Engine Jerking / Misfire / Missing / Fuel System
+    const hasJerking = text.includes('jhatk') || text.includes('jerk') || text.includes('misfire') || text.includes('missing') ||
+                       text.includes('chlti') || text.includes('kachay petrol') || text.includes('plug') || text.includes('injector') || text.includes('pickup');
+
+    // 4. Gearbox / Shifter / 3rd Gear / Transmission / Clutch
+    const hasGearIssue = text.includes('gear') || text.includes('3rd') || text.includes('clutch') || text.includes('phas') ||
+                         text.includes('hard') || text.includes('reverse') || text.includes('slipping') || text.includes('gearbox');
+
+    // 5. Brakes / Squeaking / Soft Pedal
+    const hasBrakes = text.includes('brake') || text.includes('break') || text.includes('chee chee') || text.includes('squeak') ||
+                      text.includes('pedal') || text.includes('ruk nahi');
+
+    // 6. Suspension / Clunking / Khada Awaz / Tik Tik
+    const hasSuspension = text.includes('khad') || text.includes('awaz') || text.includes('sound') || text.includes('tik') ||
+                          text.includes('thuk') || text.includes('jump') || text.includes('speed breaker') || text.includes('shock') ||
+                          text.includes('axle') || text.includes('cv joint') || text.includes('chimtay');
+
+    // 7. AC / Cooling / Gas / Compressor
+    const hasAC = text.includes('ac') || text.includes('cooling') || text.includes('hawa') || text.includes('garam') ||
+                  text.includes('gas') || text.includes('compressor') || text.includes('thanda');
+
+    // 8. Overheating / Radiator / Temperature
+    const hasOverheat = text.includes('heat') || text.includes('overheat') || text.includes('radiator') || text.includes('coolant') ||
+                        text.includes('pani') || text.includes('temperature') || text.includes('boil');
+
+    // 9. Battery / Electrical / Self Starter
+    const hasElectrical = text.includes('battery') || text.includes('self') || text.includes('start nahi') || text.includes('dynamo') ||
+                          text.includes('alternator') || text.includes('light') || text.includes('fuse') || text.includes('wiring');
+
+    // 10. Denting / Painting / Scratches / Bodywork
+    const hasBodywork = text.includes('dent') || text.includes('paint') || text.includes('scratch') || text.includes('bumper') ||
+                        text.includes('fender') || text.includes('darwaza') || text.includes('accident') || text.includes('hit') || text.includes('color');
+
+    // 11. Oil Service / Tuning / Maintenance
+    const hasOilService = text.includes('oil') || text.includes('mobil') || text.includes('tuning') || text.includes('service') || text.includes('filter');
+
+    // 12. Tyres / Puncture / Balancing
+    const hasTyres = text.includes('tyre') || text.includes('tire') || text.includes('puncture') || text.includes('balancing') || text.includes('hawa');
+
+    // --- APPLY DIAGNOSTIC KNOWLEDGE BASE ---
+    if (hasSmell) {
+        tasks.push('Perform deep extraction steam & foam wash on carpets, seat upholstery, and floor mats where spillage or contamination occurred.');
+        tasks.push('Apply bio-enzymatic odor-neutralizing treatment to eradicate organic food/spill bacteria at the molecular level.');
+        tasks.push('Remove contaminated cabin AC air filter, chemically sanitize HVAC evaporator core air ducts, and run 30-min cabin ozone deodorization.');
+        parts.push({ desc: 'Bio-Enzymatic Interior Cleaner & Stain Remover', qty: 1, estimatedRate: 2200 });
+        parts.push({ desc: 'Anti-Bacterial Cabin AC Air Filter (OEM)', qty: 1, estimatedRate: 2500 });
+        parts.push({ desc: 'Cabin Ozone Deodorizing & Antibacterial Mist Treatment', qty: 1, estimatedRate: 1800 });
+        matchedDepts.add('Car Wash');
+        matchedDepts.add('Detailing');
+        matchedDepts.add('AC Service');
+        labour += 4500;
+    }
 
     if (hasPulling) {
-        tasks.push('Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends; perform 3D computerized wheel alignment and calibrate steering angle sensor.');
+        tasks.push('Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends for mechanical play.');
+        tasks.push('Perform 4-wheel computerized 3D laser alignment and calibrate electronic steering angle sensor (SAS).');
         parts.push({ desc: 'Front Lower Control Arm Bushings Set', qty: 1, estimatedRate: 4800 });
-        parts.push({ desc: 'Tie Rod Ends (Pair)', qty: 1, estimatedRate: 4200 });
+        parts.push({ desc: 'Steering Tie Rod Ends (Pair)', qty: 1, estimatedRate: 4200 });
+        matchedDepts.add('Mechanical');
+        matchedDepts.add('Alignment');
         labour += 2500;
     }
 
     if (hasJerking) {
-        tasks.push('Perform complete EFI diagnostic tune-up: scan OBD-II for misfire codes, replace fouled spark plugs, chemically clean fuel injectors, and service throttle body.');
-        parts.push({ desc: 'OEM Spark Plugs Set', qty: 1, estimatedRate: 7500 });
-        parts.push({ desc: 'Throttle Body & Carb Cleaner Spray', qty: 2, estimatedRate: 1200 });
-        labour += 3000;
+        tasks.push('Perform complete EFI diagnostic tune-up: scan OBD-II for cylinder misfire codes, replace fouled spark plugs, and clean fuel injectors.');
+        tasks.push('Disassemble electronic throttle body, clean carbon deposits with sensor-safe chemical, and recalibrate idle airflow.');
+        parts.push({ desc: 'OEM Iridium Spark Plugs Set', qty: 1, estimatedRate: 7500 });
+        parts.push({ desc: 'Electronic Throttle Body & MAF Chemical Cleaner Spray', qty: 2, estimatedRate: 1400 });
+        matchedDepts.add('Mechanical');
+        labour += 3500;
     }
 
     if (hasGearIssue) {
-        tasks.push('Inspect manual transmission and clutch assembly: check gear linkage cable alignment, drain and refill burnt gear oil, inspect/replace worn 3rd gear synchronizer brass ring and clutch release bearing.');
-        parts.push({ desc: '3rd Gear Synchronizer Brass Ring', qty: 1, estimatedRate: 6500 });
-        parts.push({ desc: 'Manual Transmission Gear Oil (75W-90) - 1L', qty: 3, estimatedRate: 2600 });
-        labour += 8000;
+        tasks.push('Inspect clutch assembly, release bearing, and gear shifter linkage cables for tension and bushing wear.');
+        tasks.push('Drain burnt gear oil, inspect for synchronizer brass debris, and refill with high-grade synthetic gear oil (75W-90).');
+        tasks.push('If 3rd gear sticks or grinds, remove transmission to inspect/replace worn 3rd gear synchronizer brass cone ring.');
+        parts.push({ desc: '3rd Gear Synchronizer Brass Cone Ring', qty: 1, estimatedRate: 6800 });
+        parts.push({ desc: 'Full Synthetic 75W-90 Transmission Gear Oil (1L)', qty: 3, estimatedRate: 2800 });
+        matchedDepts.add('Mechanical');
+        labour += 7500;
     }
 
-    if (hasNoise && !hasPulling) {
-        tasks.push('Inspect drive axles, CV boots, and stabilizer sway bar links for excessive play or tears; road test over speed bumps to verify contact noise elimination.');
-        parts.push({ desc: 'Outer CV Joint Assembly', qty: 1, estimatedRate: 8500 });
-        parts.push({ desc: 'Front Stabilizer Sway Bar Links (Pair)', qty: 1, estimatedRate: 3400 });
-        labour += 2500;
+    if (hasBrakes) {
+        tasks.push('Measure front brake pad and rear brake shoe friction lining thickness against safety tolerances.');
+        tasks.push('Inspect front brake disc rotors for grooves and lateral runout; precision skim on lathe if required; bleed brake fluid with fresh DOT-4.');
+        parts.push({ desc: 'Front Ceramic Brake Pads (OEM)', qty: 1, estimatedRate: 6500 });
+        parts.push({ desc: 'Brake Rotor Disc Precision Skimming / Lathe Resurfacing (Pair)', qty: 1, estimatedRate: 2500 });
+        parts.push({ desc: 'DOT-4 Hydraulic Brake Fluid (500ml)', qty: 2, estimatedRate: 1200 });
+        matchedDepts.add('Mechanical');
+        labour += 3000;
     }
 
-    if (hasAC) {
-        tasks.push('Perform AC refrigerant pressure check, test condenser and evaporator for micro-leaks, evacuate system, recharge R134a refrigerant, and replace cabin filter.');
-        parts.push({ desc: 'R134a Refrigerant Gas Recharge & Compressor Oil', qty: 1, estimatedRate: 3500 });
-        parts.push({ desc: 'Cabin AC Air Filter (OEM)', qty: 1, estimatedRate: 1800 });
+    if (hasSuspension && !hasPulling) {
+        tasks.push('Inspect front shock absorbers, strut mount bearings, and drive axles for fluid leakage and abnormal play.');
+        tasks.push('Check stabilizer sway bar links and rubber D-bushings; road-test over speed bumps to verify contact noise elimination.');
+        parts.push({ desc: 'Front Outer CV Joint & Axle Boot Assembly', qty: 1, estimatedRate: 8500 });
+        parts.push({ desc: 'Front Stabilizer Sway Bar Drop Links (Pair)', qty: 1, estimatedRate: 3600 });
+        matchedDepts.add('Mechanical');
+        labour += 3500;
+    }
+
+    if (hasAC && !hasSmell) {
+        tasks.push('Connect dual-gauge AC manifold to analyze high and low refrigerant pressure circuits; inspect for micro-leaks.');
+        tasks.push('Evacuate AC system; recharge pure R134a refrigerant with UV leak detection dye and PAG lubricant oil; replace cabin filter.');
+        parts.push({ desc: 'R134a Refrigerant Gas Recharge & PAG Compressor Oil', qty: 1, estimatedRate: 3800 });
+        parts.push({ desc: 'Premium Anti-Pollen Cabin AC Air Filter', qty: 1, estimatedRate: 2200 });
+        matchedDepts.add('AC Service');
+        labour += 3000;
+    }
+
+    if (hasOverheat) {
+        tasks.push('Pressure-test cooling system for leaks in radiator, water pump, and hoses; inspect thermostat valve operation.');
+        tasks.push('Verify high-speed radiator cooling fan activation; chemically flush radiator and refill with long-life anti-freeze coolant.');
+        parts.push({ desc: 'Concentrated Long-Life Engine Coolant (Green/Pink) - 4L', qty: 1, estimatedRate: 4500 });
+        parts.push({ desc: 'OEM Thermostat Valve Assembly', qty: 1, estimatedRate: 3200 });
+        matchedDepts.add('Mechanical');
+        labour += 3000;
+    }
+
+    if (hasElectrical) {
+        tasks.push('Perform automated digital battery conductance test (CCA, voltage drop, internal resistance).');
+        tasks.push('Inspect alternator charging circuit under full electrical load (13.8V - 14.4V); clean battery grounding terminals.');
+        parts.push({ desc: 'Automotive Maintenance-Free Sealed Battery', qty: 1, estimatedRate: 16500 });
+        parts.push({ desc: 'Anti-Corrosion Terminal Spray & Washers', qty: 1, estimatedRate: 800 });
+        matchedDepts.add('Electrical');
         labour += 2000;
     }
 
+    if (hasBodywork) {
+        tasks.push('Perform precision panel beating on dented areas to restore factory body contours.');
+        tasks.push('Apply anti-corrosive primer, computerized color-matched 2K basecoat, and high-gloss clearcoat; bake in heated paint booth.');
+        parts.push({ desc: 'Computerized 2K Color-Matched Automotive Paint & Clearcoat Kit', qty: 1, estimatedRate: 9500 });
+        parts.push({ desc: 'Body Polyester Lightweight Filler & 2K Primer Consumables', qty: 1, estimatedRate: 4200 });
+        matchedDepts.add('Denting');
+        matchedDepts.add('Painting');
+        labour += 12000;
+    }
+
+    if (hasOilService && !hasJerking) {
+        tasks.push('Drain old engine oil; install new genuine engine oil filter with fresh drain plug washer.');
+        tasks.push('Refill engine with manufacturer-recommended fully synthetic oil; replace air intake filter and inspect all vital fluids.');
+        parts.push({ desc: 'Fully Synthetic 5W-30 Engine Oil (4L)', qty: 1, estimatedRate: 11500 });
+        parts.push({ desc: 'OEM Engine Oil Filter', qty: 1, estimatedRate: 2200 });
+        parts.push({ desc: 'High-Flow Engine Air Filter', qty: 1, estimatedRate: 2400 });
+        matchedDepts.add('General Service');
+        labour += 2000;
+    }
+
+    if (hasTyres && !hasPulling) {
+        tasks.push('Inspect all 4 tyres for tread wear, sidewall damage, or foreign object punctures; apply internal patch if needed.');
+        tasks.push('Dynamically balance wheels on computerized balancing machine and set cold manufacturer tyre inflation pressures.');
+        parts.push({ desc: 'High-Speed Wheel Balancing Lead Weights Set', qty: 1, estimatedRate: 1200 });
+        parts.push({ desc: 'Internal Cold Tyre Puncture Repair Patch Material', qty: 1, estimatedRate: 800 });
+        matchedDepts.add('Tyres Works');
+        matchedDepts.add('Balancing');
+        labour += 1500;
+    }
+
+    // Comprehensive Fallback if no specific condition matched
     if (tasks.length === 0) {
-        tasks.push('Perform 40-point vehicle multi-point health check and OBD-II electronic diagnostic trouble code scan.');
-        parts.push({ desc: 'General Maintenance Service Filter Kit', qty: 1, estimatedRate: 4500 });
+        tasks.push(`Perform targeted technical diagnostic inspection addressing reported vehicle concern: "${concern}".`);
+        tasks.push('Connect OBD-II professional scanner to record live engine, transmission, and body control sensor telemetry.');
+        tasks.push('Conduct multi-point chassis, suspension, braking, and fluid level inspection with Service Incharge road-test.');
+        parts.push({ desc: 'OBD-II Electronic Diagnostic Scan & Sensor Telemetry Report', qty: 1, estimatedRate: 2500 });
+        parts.push({ desc: 'Comprehensive Multi-Point Technical Safety Inspection Kit', qty: 1, estimatedRate: 2000 });
+        matchedDepts.add('Mechanical');
+        labour = 3500;
     }
 
     return {
         workToBeDone: tasks.map((t, i) => `${i + 1}. ${t}`).join('\n'),
         recommendedParts: parts,
-        estimatedLabour: labour
+        estimatedLabour: labour,
+        departments: Array.from(matchedDepts)
     };
 }
 
