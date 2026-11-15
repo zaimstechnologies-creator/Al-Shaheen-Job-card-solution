@@ -17,33 +17,73 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Ensure data folder exists
 const dataDir = path.join(__dirname, 'data');
-if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+try {
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+    }
+} catch (e) {
+    // Read-only serverless environment (e.g. Vercel Lambda)
 }
+
+// Pre-load default seed job cards so Vercel NFT bundles it
+let bundledSeedCards = [];
+try {
+    bundledSeedCards = require('./data/jobcards.json');
+} catch (e) {
+    bundledSeedCards = [];
+}
+
+let inMemoryCards = null;
 
 // Helpers for Data Persistence
 function readJobCards() {
-    try {
-        if (!fs.existsSync(DATA_FILE)) {
-            return [];
-        }
-        const raw = fs.readFileSync(DATA_FILE, 'utf8');
-        return JSON.parse(raw);
-    } catch (err) {
-        console.error('Error reading job cards:', err.message);
-        return [];
+    if (inMemoryCards && Array.isArray(inMemoryCards) && inMemoryCards.length > 0) {
+        return inMemoryCards;
     }
+
+    // 1. Try reading from /tmp on serverless environments
+    try {
+        const tmpFile = path.join('/tmp', 'jobcards.json');
+        if (fs.existsSync(tmpFile)) {
+            const raw = fs.readFileSync(tmpFile, 'utf8');
+            inMemoryCards = JSON.parse(raw);
+            return inMemoryCards;
+        }
+    } catch (e) {}
+
+    // 2. Try reading from local data file
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const raw = fs.readFileSync(DATA_FILE, 'utf8');
+            inMemoryCards = JSON.parse(raw);
+            return inMemoryCards;
+        }
+    } catch (err) {}
+
+    // 3. Fallback to bundled seed cards
+    inMemoryCards = JSON.parse(JSON.stringify(bundledSeedCards));
+    return inMemoryCards;
 }
 
 function writeJobCards(cards) {
+    inMemoryCards = cards;
+    let written = false;
+
+    // 1. Attempt local file write
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(cards, null, 2), 'utf8');
-        broadcastEvent('update', { count: cards.length, timestamp: Date.now() });
-        return true;
+        written = true;
     } catch (err) {
-        console.error('Error writing job cards:', err.message);
-        return false;
+        // 2. Serverless Lambda fallback: write to writable /tmp
+        try {
+            const tmpFile = path.join('/tmp', 'jobcards.json');
+            fs.writeFileSync(tmpFile, JSON.stringify(cards, null, 2), 'utf8');
+            written = true;
+        } catch (e2) {}
     }
+
+    broadcastEvent('update', { count: cards.length, timestamp: Date.now() });
+    return written;
 }
 
 function getGeminiApiKey() {
@@ -72,7 +112,15 @@ function broadcastEvent(eventType, payload) {
 }
 
 // SSE Endpoint
-app.get('/api/live-stream', (req, res) => {
+app.get(['/api/live-stream', '/live-stream'], (req, res) => {
+    if (process.env.VERCEL) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'close');
+        res.write(`event: connected\ndata: ${JSON.stringify({ vercel: true, time: Date.now() })}\n\n`);
+        return res.end();
+    }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -88,13 +136,13 @@ app.get('/api/live-stream', (req, res) => {
     });
 });
 
-// REST API Endpoints
-app.get('/api/jobcards', (req, res) => {
+// REST API Endpoints (supports both /api/jobcards and /jobcards)
+app.get(['/api/jobcards', '/jobcards'], (req, res) => {
     const cards = readJobCards();
     res.json({ success: true, data: cards });
 });
 
-app.get('/api/jobcards/:id', (req, res) => {
+app.get(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
     const cards = readJobCards();
     const found = cards.find(c => c.id.toLowerCase() === req.params.id.toLowerCase());
     if (found) {
@@ -105,7 +153,7 @@ app.get('/api/jobcards/:id', (req, res) => {
 });
 
 // Create or Update Job Card via POST
-app.post('/api/jobcards', (req, res) => {
+app.post(['/api/jobcards', '/jobcards'], (req, res) => {
     const newCard = req.body;
     if (!newCard || !newCard.id) {
         return res.status(400).json({ success: false, message: 'Valid job card object required' });
@@ -137,7 +185,7 @@ app.post('/api/jobcards', (req, res) => {
 });
 
 // Update Job Card via PUT
-app.put('/api/jobcards/:id', (req, res) => {
+app.put(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
     const updated = req.body;
     const cards = readJobCards();
     const idx = cards.findIndex(c => c.id.toLowerCase() === req.params.id.toLowerCase());
@@ -164,7 +212,7 @@ app.put('/api/jobcards/:id', (req, res) => {
     res.json({ success: true, data: cards[idx >= 0 ? idx : 0] });
 });
 
-app.put('/api/jobcards/:id/bay', (req, res) => {
+app.put(['/api/jobcards/:id/bay', '/jobcards/:id/bay'], (req, res) => {
     const { bay, status } = req.body;
     const cards = readJobCards();
     const idx = cards.findIndex(c => c.id.toLowerCase() === req.params.id.toLowerCase());
@@ -197,7 +245,7 @@ app.put('/api/jobcards/:id/bay', (req, res) => {
     res.json({ success: true, data: cards[idx] });
 });
 
-app.delete('/api/jobcards/:id', (req, res) => {
+app.delete(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
     let cards = readJobCards();
     const initialLen = cards.length;
     cards = cards.filter(c => c.id.toLowerCase() !== req.params.id.toLowerCase());
@@ -214,7 +262,7 @@ app.delete('/api/jobcards/:id', (req, res) => {
 // GEMINI AI AUTOMOTIVE DIAGNOSTIC ENGINE (SERVER-SIDE PROXY)
 // Accurately interprets English, Urdu, and Roman Urdu mechanical concerns
 // ==========================================================================
-app.post('/api/ai/diagnose', (req, res) => {
+app.post(['/api/ai/diagnose', '/ai/diagnose'], (req, res) => {
     const { concern, makeModel, mileage, apiKey: clientApiKey } = req.body;
     const apiKey = clientApiKey || getGeminiApiKey();
 
@@ -367,7 +415,7 @@ function generateAdvancedAutomotiveDiagnosis(concern, makeModel) {
 }
 
 // Trigger voice announcement
-app.post('/api/tv/announce', (req, res) => {
+app.post(['/api/tv/announce', '/tv/announce'], (req, res) => {
     const { plateNo, makeModel, message } = req.body;
     broadcastEvent('voice_announce', {
         plateNo: plateNo || 'Test Vehicle',

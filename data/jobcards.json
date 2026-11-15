@@ -1,21 +1,21 @@
 [
   {
-    "id": "ASH-570539",
-    "createdAt": "2026-11-15T11:04:15.778Z",
-    "deliveryDue": "2026-11-15T16:04:15.778Z",
-    "status": "Ready",
-    "currentBay": "Bay 6",
+    "id": "ASH-414288",
+    "createdAt": "2026-11-15T11:50:53.606Z",
+    "deliveryDue": "2026-11-15T16:50:53.606Z",
+    "status": "In Progress",
+    "currentBay": "Bay 2",
     "customer": {
-      "name": "Ali",
+      "name": "Haider",
       "phone": "03364331888",
-      "address": "Lahore"
+      "address": "Askari 11"
     },
     "vehicle": {
-      "plateNo": "AQP 007",
-      "makeModel": "Kia Sportage",
-      "mileage": "55000",
-      "color": "White",
-      "fuelLevel": 15
+      "plateNo": "XAS 17 2656",
+      "makeModel": "Nissan Dayz 2023",
+      "mileage": "45000",
+      "color": "Black",
+      "fuelLevel": 35
     },
     "inventory": {
       "spareWheel": true,
@@ -26,265 +26,53 @@
     "departments": [
       "Mechanical"
     ],
-    "concern": "Gari aik trf khud ko khainchti hai, jhatky ly kr chlti hai, gear shift main b masla hai, kbhi kbhi tu 3rd gear sahi lag jata hai kabhi kabhi phas jata hai,",
-    "workToBeDone": "1. Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends; perform 3D computerized wheel alignment and calibrate steering angle sensor.\n2. Perform complete EFI diagnostic tune-up: scan OBD-II for misfire codes, replace fouled spark plugs, chemically clean fuel injectors, and service throttle body.\n3. Inspect manual transmission and clutch assembly: check gear linkage cable alignment, drain and refill burnt gear oil, remove gearbox to inspect/replace worn 3rd gear synchronizer brass ring and clutch release bearing.",
+    "concern": "Break sahi nhi lag rhi, na agli na pichli",
+    "workToBeDone": "1. Perform 40-point vehicle multi-point health check and OBD-II electronic diagnostic trouble code scan.",
     "parts": [
       {
-        "desc": "Front Lower Control Arm Bushings Set",
+        "desc": "General Maintenance Service Filter Kit",
         "qty": 1,
-        "rate": 0,
-        "amount": 0
-      },
-      {
-        "desc": "Tie Rod Ends (Pair)",
-        "qty": 1,
-        "rate": 0,
-        "amount": 0
-      },
-      {
-        "desc": "OEM Spark Plugs Set",
-        "qty": 1,
-        "rate": 0,
-        "amount": 0
-      },
-      {
-        "desc": "Throttle Body & Carb Cleaner Spray",
-        "qty": 2,
-        "rate": 0,
-        "amount": 0
-      },
-      {
-        "desc": "3rd Gear Synchronizer Brass Ring",
-        "qty": 1,
-        "rate": 0,
-        "amount": 0
-      },
-      {
-        "desc": "Manual Transmission Gear Oil (75W-90) - 1L",
-        "qty": 3,
-        "rate": 0,
-        "amount": 0
+        "rate": 4500,
+        "amount": 4500
       }
     ],
-    "labour": 0,
+    "labour": 4000,
     "otherCharges": 0,
     "discount": 0,
     "advance": 0,
-    "subTotal": 0,
-    "netPayable": 0,
-    "balance": 0,
+    "subTotal": 8500,
+    "netPayable": 8500,
+    "balance": 8500,
     "serviceAdvisor": "Service Incharge",
-    "damageMarkers": []
+    "damageMarkers": [
+      {
+        "type": "R",
+        "x": 0.0995651908542799,
+        "y": 0.2139129638671875
+      },
+      {
+        "type": "R",
+        "x": 0.09521736476732337,
+        "y": 0.5921738334324049
+      }
+    ]
   },
   {
-    "id": "ASH-000126",
-    "createdAt": "2026-11-15T12:59:00.000Z",
+    "id": "ASH-829104",
+    "createdAt": "2026-11-15T09:15:00.000Z",
     "deliveryDue": "2026-11-15T17:30:00.000Z",
     "status": "Ready",
     "currentBay": "Bay 6",
     "customer": {
-      "name": "Ali",
-      "phone": "03323164131",
-      "address": "Lahore, Pakistan"
-    },
-    "vehicle": {
-      "plateNo": "AQP 007",
-      "makeModel": "Mazda Flair (2022)",
-      "mileage": "42000",
-      "color": "Red",
-      "fuelLevel": 50
-    },
-    "inventory": {
-      "spareWheel": true,
-      "toolKit": true,
-      "floorMats": true,
-      "valuablesOut": true
-    },
-    "departments": [
-      "Mechanical",
-      "Alignment"
-    ],
-    "concern": "gari jab kisi khady main lgti hai tu side sy tik tik ki awaz ati hai, kbhi bgair khady k b speed taiz or slow krny py b ati hai",
-    "workToBeDone": "1. Perform visual and physical inspection of both front drive axles and CV boots for tears, grease leaks, and excessive play.\n2. Inspect front suspension components, stabilizer links, and control arm bushings.\n3. Replace damaged CV joint / drive axle assembly and stabilizer link.\n4. Conduct thorough road test over uneven surfaces and test drive at varied speeds.",
-    "parts": [
-      {
-        "desc": "Front Outer CV Joint / Drive Axle Assembly",
-        "qty": 1,
-        "rate": 8500,
-        "amount": 8500
-      },
-      {
-        "desc": "Front Stabilizer Link (Left/Right)",
-        "qty": 1,
-        "rate": 2800,
-        "amount": 2800
-      },
-      {
-        "desc": "Front Control Arm Bushings",
-        "qty": 1,
-        "rate": 3200,
-        "amount": 3200
-      }
-    ],
-    "labour": 4500,
-    "otherCharges": 0,
-    "discount": 500,
-    "advance": 5000,
-    "subTotal": 19000,
-    "netPayable": 18500,
-    "balance": 13500,
-    "serviceAdvisor": "Service Incharge",
-    "damageMarkers": [
-      {
-        "type": "D",
-        "x": 0.42,
-        "y": 0.15
-      },
-      {
-        "type": "S",
-        "x": 0.88,
-        "y": 0.65
-      }
-    ]
-  },
-  {
-    "id": "ASH-000127",
-    "createdAt": "2026-11-15T11:30:00.000Z",
-    "deliveryDue": "2026-11-15T16:00:00.000Z",
-    "status": "Ready",
-    "currentBay": "Bay 6",
-    "customer": {
-      "name": "Usman Tariq",
-      "phone": "03214567890",
+      "name": "Hamza Tariq",
+      "phone": "0321-4455667",
       "address": "DHA Phase 5, Lahore"
     },
     "vehicle": {
-      "plateNo": "LEA 19-4521",
-      "makeModel": "Toyota Corolla (2020)",
-      "mileage": "68000",
+      "plateNo": "LEB 9090",
+      "makeModel": "Toyota Fortuner (2023)",
+      "mileage": "32000",
       "color": "Super White",
-      "fuelLevel": 75
-    },
-    "inventory": {
-      "spareWheel": true,
-      "toolKit": true,
-      "floorMats": true,
-      "valuablesOut": true
-    },
-    "departments": [
-      "AC Service",
-      "Electrical"
-    ],
-    "concern": "AC cooling is very slow and warm air comes out in daytime traffic",
-    "workToBeDone": "1. Check AC gas pressure and test for refrigerant leaks.\n2. Clean condenser coil and inspect cooling fan high speed relay.\n3. Replace cabin AC filter and top up R134a refrigerant.",
-    "parts": [
-      {
-        "desc": "Cabin AC Air Filter (OEM)",
-        "qty": 1,
-        "rate": 1800,
-        "amount": 1800
-      },
-      {
-        "desc": "R134a Refrigerant Gas Top-up & Oil",
-        "qty": 1,
-        "rate": 3500,
-        "amount": 3500
-      }
-    ],
-    "labour": 2500,
-    "otherCharges": 0,
-    "discount": 300,
-    "advance": 2000,
-    "subTotal": 7800,
-    "netPayable": 7500,
-    "balance": 5500,
-    "serviceAdvisor": "Hamza Tariq",
-    "damageMarkers": []
-  },
-  {
-    "id": "ASH-000128",
-    "createdAt": "2026-11-15T10:15:00.000Z",
-    "deliveryDue": "2026-11-15T14:45:00.000Z",
-    "status": "Ready",
-    "currentBay": "Bay 6",
-    "customer": {
-      "name": "Dr. Bilal Ahmad",
-      "phone": "03009876543",
-      "address": "Askari 11, Lahore"
-    },
-    "vehicle": {
-      "plateNo": "ICT 789",
-      "makeModel": "Honda Civic (2021)",
-      "mileage": "35000",
-      "color": "Crystal Black",
-      "fuelLevel": 40
-    },
-    "inventory": {
-      "spareWheel": true,
-      "toolKit": true,
-      "floorMats": true,
-      "valuablesOut": true
-    },
-    "departments": [
-      "General Service",
-      "Alignment",
-      "Balancing",
-      "Car Wash"
-    ],
-    "concern": "Periodic 35k km general tuning, synthetic oil change, wheel alignment and vehicle detailing wash",
-    "workToBeDone": "1. Replace engine oil and genuine oil filter.\n2. Complete computer scan and throttle body service.\n3. 4-Wheel computer alignment and road force balancing.\n4. Full underbody steam wash and interior vacuuming.",
-    "parts": [
-      {
-        "desc": "Fully Synthetic Engine Oil 5W-30 (4L)",
-        "qty": 1,
-        "rate": 11500,
-        "amount": 11500
-      },
-      {
-        "desc": "Genuine Honda Oil Filter",
-        "qty": 1,
-        "rate": 2200,
-        "amount": 2200
-      },
-      {
-        "desc": "Engine Air Cleaner Element",
-        "qty": 1,
-        "rate": 2400,
-        "amount": 2400
-      }
-    ],
-    "labour": 5000,
-    "otherCharges": 1200,
-    "discount": 1000,
-    "advance": 10000,
-    "subTotal": 22300,
-    "netPayable": 21300,
-    "balance": 11300,
-    "serviceAdvisor": "Service Incharge",
-    "damageMarkers": [
-      {
-        "type": "C",
-        "x": 0.15,
-        "y": 0.45
-      }
-    ]
-  },
-  {
-    "id": "ASH-000129",
-    "createdAt": "2026-11-15T13:40:00.000Z",
-    "deliveryDue": "2026-11-15T18:00:00.000Z",
-    "status": "Ready",
-    "currentBay": "Bay 6",
-    "customer": {
-      "name": "Zeeshan Malik",
-      "phone": "03451122334",
-      "address": "Cantt, Lahore"
-    },
-    "vehicle": {
-      "plateNo": "BAP 556",
-      "makeModel": "KIA Sportage (2023)",
-      "mileage": "19500",
-      "color": "Mercury Grey",
       "fuelLevel": 85
     },
     "inventory": {
@@ -295,32 +83,157 @@
     },
     "departments": [
       "Mechanical",
-      "Tyres Works"
+      "Car Wash",
+      "Detailing",
+      "General Service"
     ],
-    "concern": "Brake vibration at high speed and squealing sound when braking gently",
-    "workToBeDone": "1. Inspect front and rear brake pads and measure rotor thickness.\n2. Resurface brake rotors on lathe machine.\n3. Install new ceramic front brake pads with anti-squeal shims.",
+    "concern": "Periodic 30,000 KM maintenance, ceramic booster wash, and AC performance check.",
+    "workToBeDone": "1. Replace OEM engine oil (5W-30 Synthetic) and oil filter.\n2. Service cabin AC filter and clean condenser fins.\n3. Conduct 40-point safety check, brake pad thickness measurement, and tire rotation.\n4. Complete premium interior detailing and foam wash.",
     "parts": [
       {
-        "desc": "Front Ceramic Brake Pad Set",
+        "desc": "Toyota Genuine Synthetic Oil (5W-30) - 7L",
         "qty": 1,
-        "rate": 7800,
-        "amount": 7800
+        "rate": 18500,
+        "amount": 18500
       },
       {
-        "desc": "Brake Rotor Precision Machining",
-        "qty": 2,
-        "rate": 1500,
-        "amount": 3000
+        "desc": "Toyota OEM Oil Filter",
+        "qty": 1,
+        "rate": 2800,
+        "amount": 2800
+      },
+      {
+        "desc": "Cabin AC Air Filter",
+        "qty": 1,
+        "rate": 2200,
+        "amount": 2200
+      }
+    ],
+    "labour": 4500,
+    "otherCharges": 0,
+    "discount": 500,
+    "advance": 10000,
+    "subTotal": 28000,
+    "netPayable": 27500,
+    "balance": 17500,
+    "serviceAdvisor": "Service Incharge",
+    "damageMarkers": []
+  },
+  {
+    "id": "ASH-642109",
+    "createdAt": "2026-11-15T10:30:00.000Z",
+    "deliveryDue": "2026-11-15T18:00:00.000Z",
+    "status": "In Progress",
+    "currentBay": "Bay 1",
+    "customer": {
+      "name": "Usman Malik",
+      "phone": "0300-8877665",
+      "address": "Gulberg III, Lahore"
+    },
+    "vehicle": {
+      "plateNo": "ICT 772",
+      "makeModel": "Honda Civic RS (2022)",
+      "mileage": "41000",
+      "color": "Crystal Black",
+      "fuelLevel": 60
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "Mechanical",
+      "Electrical"
+    ],
+    "concern": "Gari slow speed par jerk leti hai aur steering light on hai.",
+    "workToBeDone": "1. Connect OBD-II diagnostic scanner to scan ECM and EPS control modules.\n2. Inspect throttle body carbon buildup and clean with sensor-safe cleaner.\n3. Calibrate steering torque sensor and verify wheel speed sensor readings.",
+    "parts": [
+      {
+        "desc": "Throttle Body Cleaner Chemical",
+        "qty": 1,
+        "rate": 1200,
+        "amount": 1200
+      },
+      {
+        "desc": "NGK Iridium Spark Plugs Set",
+        "qty": 4,
+        "rate": 3500,
+        "amount": 14000
       }
     ],
     "labour": 3500,
     "otherCharges": 0,
-    "discount": 500,
+    "discount": 0,
     "advance": 5000,
-    "subTotal": 14300,
-    "netPayable": 13800,
-    "balance": 8800,
-    "serviceAdvisor": "Hamza Tariq",
+    "subTotal": 18700,
+    "netPayable": 18700,
+    "balance": 13700,
+    "serviceAdvisor": "Service Incharge",
     "damageMarkers": []
+  },
+  {
+    "id": "ASH-570539",
+    "createdAt": "2026-11-15T11:04:15.778Z",
+    "deliveryDue": "2026-11-15T16:04:15.778Z",
+    "status": "Paid & Delivered",
+    "currentBay": "Delivered (Closed)",
+    "customer": {
+      "name": "Ali",
+      "phone": "03364331888",
+      "address": "Lahore"
+    },
+    "vehicle": {
+      "plateNo": "BXE 007",
+      "makeModel": "Kia Sportage",
+      "mileage": "55000",
+      "color": "White",
+      "fuelLevel": 70
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "Mechanical",
+      "Electrical",
+      "AC Service"
+    ],
+    "concern": "Gari aik trf khud ko khainchti hai, jhatky ly kr chlti hai, gear shift main b masla hai",
+    "workToBeDone": "1. Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends; perform 3D computerized wheel alignment and calibrate steering angle sensor.\n2. Perform complete EFI diagnostic tune-up: scan OBD-II for misfire codes, replace fouled spark plugs, chemically clean fuel injectors, and service throttle body.\n3. Inspect manual transmission and clutch assembly: check gear linkage cable alignment, drain and refill burnt gear oil, remove gearbox to inspect/replace worn 3rd gear synchronizer brass ring and clutch release bearing.",
+    "parts": [
+      {
+        "desc": "Front Lower Control Arm Bushings Set",
+        "qty": 1,
+        "rate": 8500,
+        "amount": 8500
+      },
+      {
+        "desc": "Tie Rod Ends (Pair)",
+        "qty": 1,
+        "rate": 4200,
+        "amount": 4200
+      },
+      {
+        "desc": "OEM Spark Plugs Set",
+        "qty": 1,
+        "rate": 6500,
+        "amount": 6500
+      }
+    ],
+    "labour": 8000,
+    "otherCharges": 0,
+    "discount": 1000,
+    "advance": 26200,
+    "subTotal": 27200,
+    "netPayable": 26200,
+    "balance": 0,
+    "serviceAdvisor": "Service Incharge",
+    "damageMarkers": [],
+    "paymentCleared": true,
+    "closedAt": "2026-11-15T11:45:10.777Z"
   }
 ]
