@@ -3,10 +3,12 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'jobcards.json');
+const CONFIG_FILE = path.join(__dirname, 'config.json');
 
 // Middleware
 app.use(cors());
@@ -42,6 +44,17 @@ function writeJobCards(cards) {
         console.error('Error writing job cards:', err.message);
         return false;
     }
+}
+
+function getGeminiApiKey() {
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    try {
+        if (fs.existsSync(CONFIG_FILE)) {
+            const conf = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            if (conf.geminiApiKey) return conf.geminiApiKey;
+        }
+    } catch (e) {}
+    return '';
 }
 
 // Server-Sent Events (SSE) for Real-Time TV and Dashboard Sync
@@ -196,6 +209,162 @@ app.delete('/api/jobcards/:id', (req, res) => {
     writeJobCards(cards);
     res.json({ success: true, message: 'Deleted successfully' });
 });
+
+// ==========================================================================
+// GEMINI AI AUTOMOTIVE DIAGNOSTIC ENGINE (SERVER-SIDE PROXY)
+// Accurately interprets English, Urdu, and Roman Urdu mechanical concerns
+// ==========================================================================
+app.post('/api/ai/diagnose', (req, res) => {
+    const { concern, makeModel, mileage, apiKey: clientApiKey } = req.body;
+    const apiKey = clientApiKey || getGeminiApiKey();
+
+    if (!concern) {
+        return res.status(400).json({ success: false, message: 'Customer concern is required' });
+    }
+
+    const prompt = `You are a Master Automotive Engineer and Chief Technical Diagnostician at Al Shaheen Auto Hub (Lahore, Pakistan).
+Vehicle Details: ${makeModel || 'Automobile'} (Mileage: ${mileage || 'Unknown'} km).
+Customer Concern (as reported by driver in English or Roman Urdu):
+"${concern}"
+
+Understand the mechanical symptoms described by Pakistani drivers:
+- "Gari aik trf khainchti hai / pulling to one side": Steering pulling, wheel alignment camber/caster out, worn tie rod ends, damaged lower control arm ball joint or bushings, uneven tire pressure.
+- "Jhatky ly kr chlti hai / jerking": Engine misfire, fouled spark plugs, dirty fuel injectors, clogged fuel filter, carbon buildup on throttle body, or ignition coil breakdown.
+- "Gear shift main masla / 3rd gear phas jata hai": Manual transmission 3rd gear synchronizer brass ring worn/chipped, clutch pressure plate or release bearing worn, gear shift linkage cable out of adjustment, or low/burnt gear oil.
+- "Khady main awaz / tik tik sound": Worn outer CV axle joints, stabilizer sway bar links, or strut mount bearings.
+- "AC cooling issue": Low refrigerant gas (R134a), evaporator leak, faulty compressor clutch, or clogged cabin filter.
+
+Provide a comprehensive, professional automotive solution for the official Al Shaheen Job Card:
+1. workToBeDone: Formatted as numbered actionable repair tasks for the mechanics.
+2. recommendedParts: Array of specific spare parts and consumables needed with realistic Pakistani market rates (PKR).
+3. estimatedLabour: Estimated total labour charges in PKR.
+
+Return STRICTLY valid JSON with no markdown wrapping:
+{
+  "workToBeDone": "1. ...\\n2. ...\\n3. ...",
+  "recommendedParts": [
+    { "desc": "Part description", "qty": 1, "estimatedRate": 5000 }
+  ],
+  "estimatedLabour": 6500
+}`;
+
+    const payload = JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            responseMimeType: "application/json"
+        }
+    });
+
+    if (apiKey) {
+        const reqAi = https.request({
+            hostname: 'generativelanguage.googleapis.com',
+            path: `/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload)
+            },
+            timeout: 15000,
+            agent: new https.Agent({ rejectUnauthorized: false })
+        }, (resAi) => {
+            let body = '';
+            resAi.on('data', d => body += d);
+            resAi.on('end', () => {
+                if (resAi.statusCode === 200) {
+                    try {
+                        const json = JSON.parse(body);
+                        const text = json.candidates[0].content.parts[0].text;
+                        const parsedData = JSON.parse(text);
+                        return res.json({ success: true, source: 'gemini-2.5-flash', data: parsedData });
+                    } catch (parseErr) {
+                        console.warn('Failed parsing Gemini output, using heuristic fallback:', parseErr.message);
+                    }
+                }
+                // Fallback to advanced heuristic
+                const fallback = generateAdvancedAutomotiveDiagnosis(concern, makeModel);
+                return res.json({ success: true, source: 'al-shaheen-expert-system', data: fallback });
+            });
+        });
+
+        reqAi.on('error', (err) => {
+            console.warn('Gemini request error, using heuristic fallback:', err.message);
+            const fallback = generateAdvancedAutomotiveDiagnosis(concern, makeModel);
+            return res.json({ success: true, source: 'al-shaheen-expert-system', data: fallback });
+        });
+
+        reqAi.on('timeout', () => {
+            reqAi.destroy();
+            const fallback = generateAdvancedAutomotiveDiagnosis(concern, makeModel);
+            return res.json({ success: true, source: 'al-shaheen-expert-system', data: fallback });
+        });
+
+        reqAi.write(payload);
+        reqAi.end();
+    } else {
+        const fallback = generateAdvancedAutomotiveDiagnosis(concern, makeModel);
+        return res.json({ success: true, source: 'al-shaheen-expert-system', data: fallback });
+    }
+});
+
+// Advanced Automotive Knowledge Base (Expert Fallback with Roman Urdu Understanding)
+function generateAdvancedAutomotiveDiagnosis(concern, makeModel) {
+    const text = (concern || '').toLowerCase();
+    const parts = [];
+    const tasks = [];
+    let labour = 4000;
+
+    const hasPulling = text.includes('khainch') || text.includes('pull') || text.includes('alignment') || text.includes('side');
+    const hasJerking = text.includes('jhatk') || text.includes('jerk') || text.includes('misfire') || text.includes('chlti');
+    const hasGearIssue = text.includes('gear') || text.includes('3rd') || text.includes('clutch') || text.includes('phas');
+    const hasNoise = text.includes('awaz') || text.includes('sound') || text.includes('tik') || text.includes('khad');
+    const hasAC = text.includes('ac') || text.includes('cooling') || text.includes('hawa');
+
+    if (hasPulling) {
+        tasks.push('Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends; perform 3D computerized wheel alignment and calibrate steering angle sensor.');
+        parts.push({ desc: 'Front Lower Control Arm Bushings Set', qty: 1, estimatedRate: 4800 });
+        parts.push({ desc: 'Tie Rod Ends (Pair)', qty: 1, estimatedRate: 4200 });
+        labour += 2500;
+    }
+
+    if (hasJerking) {
+        tasks.push('Perform complete EFI diagnostic tune-up: scan OBD-II for misfire codes, replace fouled spark plugs, chemically clean fuel injectors, and service throttle body.');
+        parts.push({ desc: 'OEM Spark Plugs Set', qty: 1, estimatedRate: 7500 });
+        parts.push({ desc: 'Throttle Body & Carb Cleaner Spray', qty: 2, estimatedRate: 1200 });
+        labour += 3000;
+    }
+
+    if (hasGearIssue) {
+        tasks.push('Inspect manual transmission and clutch assembly: check gear linkage cable alignment, drain and refill burnt gear oil, remove gearbox to inspect/replace worn 3rd gear synchronizer brass ring and clutch release bearing.');
+        parts.push({ desc: '3rd Gear Synchronizer Brass Ring', qty: 1, estimatedRate: 6500 });
+        parts.push({ desc: 'Manual Transmission Gear Oil (75W-90) - 1L', qty: 3, estimatedRate: 2600 });
+        labour += 8000;
+    }
+
+    if (hasNoise && !hasPulling) {
+        tasks.push('Inspect drive axles, CV boots, and stabilizer sway bar links for excessive play or tears; road test over speed bumps to verify contact noise elimination.');
+        parts.push({ desc: 'Outer CV Joint Assembly', qty: 1, estimatedRate: 8500 });
+        parts.push({ desc: 'Front Stabilizer Sway Bar Links (Pair)', qty: 1, estimatedRate: 3400 });
+        labour += 2500;
+    }
+
+    if (hasAC) {
+        tasks.push('Perform AC refrigerant pressure check, test condenser and evaporator for micro-leaks, evacuate system, recharge R134a refrigerant, and replace cabin filter.');
+        parts.push({ desc: 'R134a Refrigerant Gas Recharge & Compressor Oil', qty: 1, estimatedRate: 3500 });
+        parts.push({ desc: 'Cabin AC Air Filter (OEM)', qty: 1, estimatedRate: 1800 });
+        labour += 2000;
+    }
+
+    if (tasks.length === 0) {
+        tasks.push('Perform 40-point vehicle multi-point health check and OBD-II electronic diagnostic trouble code scan.');
+        parts.push({ desc: 'General Maintenance Service Filter Kit', qty: 1, estimatedRate: 4500 });
+    }
+
+    return {
+        workToBeDone: tasks.map((t, i) => `${i + 1}. ${t}`).join('\n'),
+        recommendedParts: parts,
+        estimatedLabour: labour
+    };
+}
 
 // Trigger voice announcement
 app.post('/api/tv/announce', (req, res) => {

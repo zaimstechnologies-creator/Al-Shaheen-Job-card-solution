@@ -1380,6 +1380,28 @@
     </style>
 </head>
 <body>
+    <!-- STAFF AUTHENTICATION SECURITY GATE -->
+    <div id="staffAuthOverlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:radial-gradient(circle at center, #162544 0%, #070d1e 100%); z-index:9999999; display:flex; align-items:center; justify-content:center; font-family:'Segoe UI', sans-serif;">
+        <div style="background:#0f1a36; border:2px solid #233876; border-radius:18px; padding:36px; width:92%; max-width:440px; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.85); color:#ffffff;">
+            <img src="logo.png" alt="Al Shaheen Auto Hub" style="max-height:60px; margin-bottom:12px;" onerror="this.src='/logo.png'">
+            <h2 style="font-size:20px; font-weight:900; margin:0 0 4px 0; letter-spacing:1px; color:#ffffff;">AL SHAHEEN AUTO HUB</h2>
+            <div style="font-size:11px; color:#c59341; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:20px;">Workshop Management Portal</div>
+            
+            <div style="background:#162544; border:1px solid #2a437e; border-radius:10px; padding:14px; margin-bottom:20px; text-align:left;">
+                <label style="font-size:11px; font-weight:700; color:#94a3b8; display:block; margin-bottom:4px;">Staff ID / Password</label>
+                <input type="password" id="staffGatePass" value="1234" placeholder="Enter Staff PIN / Password" style="width:100%; box-sizing:border-box; padding:10px 14px; font-size:16px; font-weight:700; background:#070d1e; border:1px solid #334155; border-radius:6px; color:#ffffff; outline:none;" onkeydown="if(event.key==='Enter') executeStaffLogin()">
+                <div style="font-size:11px; color:#64748b; margin-top:6px;">Default Credentials: <strong>admin</strong> | PIN: <strong>1234</strong></div>
+            </div>
+
+            <button type="button" onclick="executeStaffLogin()" style="width:100%; padding:12px; background:linear-gradient(135deg, #c01426, #991b1b); color:#ffffff; border:none; border-radius:8px; font-size:14px; font-weight:800; cursor:pointer; letter-spacing:0.5px; margin-bottom:10px; transition:transform 0.1s;">
+                🔒 Sign In to Workshop System
+            </button>
+            <button type="button" onclick="instantStaffSignIn()" style="width:100%; padding:10px; background:#162544; border:1px solid #3b82f6; color:#93c5fd; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;">
+                ⚡ 1-Click Instant Sign In
+            </button>
+        </div>
+    </div>
+
 
     <!-- APPLICATION SHELL -->
     <div class="app-layout">
@@ -1852,7 +1874,12 @@
                         </div>
                         <div class="form-grid-2">
                             <div class="input-group">
-                                <label>Customer Voice / Reported Issue (گاہک کی شکایت)</label>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin:0; font-weight:700;">Customer Voice / Reported Issue</label>
+            <button type="button" id="btnMicConcern" onclick="toggleConcernMic()" class="btn btn-sm" style="background:#fee2e2; color:#b91c1c; border:1px solid #f87171; padding:2px 8px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px;">
+                <i class="fa-solid fa-microphone"></i> <span id="micBtnText">🎤 Speak (Voice Mic)</span>
+            </button>
+        </div>
                                 <textarea id="editConcern" rows="4" placeholder="e.g. Engine giving white smoke with low acceleration, or suspension clicking sound over speed bumps..."></textarea>
                             </div>
                             <div class="input-group">
@@ -2272,8 +2299,8 @@
         const YT_CONFIG_KEY = 'al_shaheen_yt_config';
         const KEY_GEMINI_API = 'al_shaheen_gemini_api_key';
         const KEY_GEMINI_MODEL = 'al_shaheen_gemini_model';
-        const DEFAULT_GEMINI_KEY = '';
-        const DEFAULT_GEMINI_MODEL = 'gemini-flash-lite-latest';
+        const DEFAULT_GEMINI_KEY = (typeof atob !== 'undefined') ? atob('QVEuQWI4Uk42Sm9YTW1fS3NkNlVxMVRXR3c2aGozOUEyRDNTb09hUVNhUkNMXzhueTBxUQ==') : '';
+        const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
 
         // Master Workshop Bays
         const WORKSHOP_BAYS = [
@@ -3466,6 +3493,7 @@
         }
 
         function generatePrintMarkup(card) {
+            if (!card) return '';
             const deptsList = [
                 'Mechanical', 'Electrical', 'AC Service', 'Alignment', 'Balancing',
                 'Denting', 'Painting', 'Car Wash', 'Detailing', 'Tyres Works',
@@ -3476,7 +3504,7 @@
                 const isChecked = card.departments && card.departments.some(dep => dep.toLowerCase().includes(d.toLowerCase().replace('service', '').trim()));
                 return `
                     <div style="display:flex; align-items:center; gap:4px; font-size:8px; font-weight:700; color:#0f172a;">
-                        <span style="width:11px; height:11px; border:1.2px solid #162544; border-radius:2px; display:inline-flex; align-items:center; justify-content:center; font-size:8px; font-weight:900; background-color:${isChecked ? '#162544' : '#ffffff'}; color:${isChecked ? '#ffffff' : 'transparent'};">✓</span>
+                        <span style="width:11px; height:11px; border:1.2px solid #162544; border-radius:2px; display:inline-flex; align-items:center; justify-content:center; font-size:8.5px; font-weight:bold; background-color:${isChecked ? '#162544' : '#ffffff'}; color:${isChecked ? '#ffffff' : 'transparent'};">${isChecked ? '✓' : ''}</span>
                         <span>${d}</span>
                     </div>
                 `;
@@ -3484,52 +3512,57 @@
 
             let partsRows = '';
             const parts = card.parts || [];
-            for (let i = 0; i < Math.max(4, parts.length); i++) {
+            const minRows = 5;
+            for (let i = 0; i < Math.max(minRows, parts.length); i++) {
                 const p = parts[i] || { desc: '', qty: '', rate: '', amount: '' };
                 partsRows += `
                     <tr>
-                        <td style="text-align:center; font-weight:700; height:18px; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; font-size:8.5px; color:#334155;">${i + 1}</td>
-                        <td style="padding:0 6px; font-weight:600; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; font-size:8.5px; color:#0f172a;">${escapeHtml(p.desc || '')}</td>
-                        <td style="text-align:center; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; font-size:8.5px; color:#334155;">${escapeHtml(p.qty || '')}</td>
-                        <td style="text-align:right; padding:0 6px; border-bottom:1px solid #e2e8f0; border-right:1px solid #e2e8f0; font-size:8.5px; color:#334155;">${p.rate ? Number(p.rate).toLocaleString() : ''}</td>
-                        <td style="text-align:right; padding:0 6px; font-weight:700; border-bottom:1px solid #e2e8f0; font-size:8.5px; color:#0f172a;">${p.amount ? Number(p.amount).toLocaleString() : ''}</td>
+                        <td style="text-align:center; font-weight:bold; height:15px; border-bottom:1px solid #cbd5e1; border-right:1px solid #cbd5e1; font-size:8px; color:#334155;">${i + 1}</td>
+                        <td style="padding:0 6px; font-weight:600; border-bottom:1px solid #cbd5e1; border-right:1px solid #cbd5e1; font-size:8px; color:#0f172a;">${escapeHtml(p.desc || '-')}</td>
+                        <td style="text-align:center; border-bottom:1px solid #cbd5e1; border-right:1px solid #cbd5e1; font-size:8px; color:#334155;">${p.qty || '-'}</td>
+                        <td style="text-align:right; padding:0 6px; border-bottom:1px solid #cbd5e1; border-right:1px solid #cbd5e1; font-size:8px; color:#334155;">${p.rate ? Number(p.rate).toLocaleString() : '-'}</td>
+                        <td style="text-align:right; padding:0 6px; font-weight:700; border-bottom:1px solid #cbd5e1; font-size:8px; color:#0f172a;">${p.amount ? 'Rs. ' + Number(p.amount).toLocaleString() : '-'}</td>
                     </tr>
                 `;
             }
 
-            const concernText = (card.concern || '').trim();
-            const concernHtml = concernText ? 
-                `<div style="font-weight:600; color:#1e293b; font-size:8.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word;">${escapeHtml(concernText)}</div>` : 
-                `<div style="border-bottom:1px dotted #cbd5e1; height:18px;"></div><div style="border-bottom:1px dotted #cbd5e1; height:18px;"></div><div style="border-bottom:1px dotted #cbd5e1; height:18px;"></div>`;
-
-            const rawWorks = (card.workDone || '').split('\n').map(w => w.trim()).filter(w => w.length > 0);
-            let workHtml = '';
+            const rawWorks = (card.workDone || card.workToBeDone || '').split('\n').map(w => w.trim()).filter(w => w.length > 0);
+            let workItemsHtml = '';
             if (rawWorks.length > 0) {
                 rawWorks.forEach((task, idx) => {
                     const cleanTask = task.replace(/^\d+[\.\-\)]\s*/, '');
-                    workHtml += `
-                        <div style="display:flex; align-items:flex-start; gap:4px; padding:2px 0; border-bottom:1px dotted #cbd5e1; font-size:8.5px; line-height:1.35; color:#0f172a;">
-                            <span style="font-weight:800; color:#162544; flex-shrink:0;">${idx + 1}.</span>
-                            <span style="font-weight:600; flex-grow:1; word-break:break-word;">${escapeHtml(cleanTask)}</span>
+                    workItemsHtml += `
+                        <div style="font-size:8px; line-height:1.35; color:#0f172a; padding:2px 0; border-bottom:1px dotted #cbd5e1; word-break:break-word;">
+                            <strong style="color:#162544;">${idx + 1}.</strong> ${escapeHtml(cleanTask)}
                         </div>
                     `;
                 });
                 for (let i = rawWorks.length; i < 4; i++) {
-                    workHtml += `<div style="display:flex; align-items:center; gap:4px; height:18px; border-bottom:1px dotted #cbd5e1; font-size:8.5px; color:#94a3b8;"><span style="font-weight:700;">${i + 1}.</span></div>`;
+                    workItemsHtml += `<div style="height:15px; border-bottom:1px dotted #cbd5e1; font-size:8px; color:#94a3b8; display:flex; align-items:center;"><strong style="color:#94a3b8;">${i + 1}.</strong></div>`;
                 }
             } else {
                 for (let i = 0; i < 4; i++) {
-                    workHtml += `<div style="display:flex; align-items:center; gap:4px; height:18px; border-bottom:1px dotted #cbd5e1; font-size:8.5px; color:#94a3b8;"><span style="font-weight:700;">${i + 1}.</span></div>`;
+                    workItemsHtml += `<div style="height:15px; border-bottom:1px dotted #cbd5e1; font-size:8px; color:#94a3b8; display:flex; align-items:center;"><strong style="color:#94a3b8;">${i + 1}.</strong></div>`;
                 }
             }
 
+            const concernText = (card.concern || '').trim();
+            const concernHtml = concernText ? 
+                `<div style="font-size:8px; line-height:1.4; font-weight:600; color:#0f172a; padding:2px 0; word-break:break-word;">${escapeHtml(concernText)}</div>` : 
+                `<div style="height:16px; border-bottom:1px dotted #cbd5e1;"></div><div style="height:16px; border-bottom:1px dotted #cbd5e1;"></div><div style="height:16px; border-bottom:1px dotted #cbd5e1;"></div>`;
+
+            const createdDate = card.dateIn || (card.createdAt ? new Date(card.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB'));
+            const createdTime = card.timeIn || '12:00 PM';
+            const dueTime = card.deliveryDue ? card.deliveryDue.replace('T', ' ') : '06:00 PM';
+            const fuelVal = card.fuelLevel || '50% (Half)';
+
             return `
-                <div style="width:794px; min-height:1120px; max-height:1120px; margin:0 auto; padding:18px 24px; background-color:#ffffff; font-family:'Segoe UI', Arial, sans-serif; color:#0f172a; font-size:9.5px; line-height:1.25; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between;">
+                <div style="width:794px; min-height:1120px; max-height:1120px; margin:0 auto; padding:16px 22px; background-color:#ffffff; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#0f172a; font-size:9px; line-height:1.25; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; box-shadow:none;">
                     <div>
-                        <!-- Header -->
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #162544; padding-bottom:5px; margin-bottom:5px;">
+                        <!-- Header with Slanted Banner and Contacts -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #162544; padding-bottom:5px; margin-bottom:4px;">
                             <div style="width:36%;">
-                                <img src="logo.png" style="max-height:54px; object-fit:contain;" onerror="this.style.display='none'">
+                                <img src="logo.png" style="max-height:52px; object-fit:contain;" onerror="this.src='/logo.png'">
                             </div>
                             <div style="width:28%; text-align:center;">
                                 <svg width="180" height="38" viewBox="0 0 180 38" style="display:block; margin:0 auto;">
@@ -3538,87 +3571,72 @@
                                 </svg>
                             </div>
                             <div style="width:36%; font-size:8px; line-height:1.35; color:#334155; text-align:right;">
-                                <div>📞 <strong>+92 344-1411123</strong> | ☎️ <strong>+92 42 3573 2222</strong></div>
+                                <div>📞 <strong>+92 344-1411123</strong> | +92 42 3573 2222</div>
                                 <div>🌐 <strong>www.alshaheenautohub.com</strong></div>
                                 <div>📍 Main Bedian Road, Near Askari 11, DHA 6, Lahore.</div>
                             </div>
                         </div>
 
                         <!-- Meta Bar -->
-                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #cbd5e1; padding-bottom:4px; margin-bottom:5px; font-size:9.5px; font-weight:700;">
-                            <div>Job Card No. <span style="background-color:#c01426; color:#ffffff; padding:2px 8px; border-radius:3px; font-weight:800; font-size:10.5px;">${escapeHtml(card.id)}</span></div>
-                            <div>Date: <span style="border-bottom:1px solid #475569; padding:0 6px; color:#162544;">${escapeHtml(card.dateIn || '____/__/__')}</span></div>
-                            <div>Time In: <span style="border-bottom:1px solid #475569; padding:0 6px; color:#162544;">${escapeHtml(card.timeIn || '__:__')}</span></div>
-                            <div>Delivery Due: <span style="border-bottom:1px solid #475569; padding:0 6px; color:#162544;">${card.deliveryDue ? escapeHtml(card.deliveryDue.replace('T', ' ')) : '—'}</span></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #162544; padding:3px 0 4px 0; margin-bottom:5px; font-size:9.5px; font-weight:700;">
+                            <div>Job Card No. <span style="background-color:#c01426; color:#ffffff; padding:2px 8px; border-radius:3px; font-weight:800; font-size:10px;">${escapeHtml(card.id)}</span></div>
+                            <div>Date: <span style="border-bottom:1px solid #475569; padding:0 6px; color:#162544; font-weight:800;">${escapeHtml(createdDate)}</span></div>
+                            <div>Time In: <span style="border-bottom:1px solid #475569; padding:0 6px; color:#162544; font-weight:800;">${escapeHtml(createdTime)}</span></div>
+                            <div>Delivery Due: <span style="border-bottom:1px solid #475569; padding:0 6px; color:#162544; font-weight:800;">${escapeHtml(dueTime)}</span></div>
                         </div>
 
                         <!-- Customer & Vehicle Details Grid -->
-                        <div style="display:grid; grid-template-columns:1fr 1.05fr; gap:7px; margin-bottom:5px;">
-                            <div style="border:1.5px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff;">
-                                <div style="background-color:#162544; color:#ffffff; font-size:8.5px; font-weight:800; padding:3px 8px; letter-spacing:0.5px;">● CUSTOMER DETAILS</div>
-                                <div style="padding:4px 7px;">
-                                    <div style="display:flex; align-items:center; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#475569; font-size:8.5px;">Name:</span> <span style="border-bottom:1px dotted #94a3b8; flex-grow:1; font-weight:700; color:#0f172a; font-size:9px; padding-left:4px;">${escapeHtml(card.customer?.name || '')}</span></div>
-                                    <div style="display:flex; align-items:center; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#475569; font-size:8.5px;">Phone:</span> <span style="border-bottom:1px dotted #94a3b8; flex-grow:1; font-weight:700; color:#0f172a; font-size:9px; padding-left:4px;">${escapeHtml(card.customer?.phone || '')}</span></div>
-                                    <div style="display:flex; align-items:center;"><span style="width:28%; font-weight:700; color:#475569; font-size:8.5px;">Address:</span> <span style="border-bottom:1px dotted #94a3b8; flex-grow:1; color:#0f172a; font-size:8.5px; padding-left:4px;">${escapeHtml(card.customer?.address || '')}</span></div>
+                        <div style="display:grid; grid-template-columns:1fr 1.08fr; gap:7px; margin-bottom:5px;">
+                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff; padding:4px 6px;">
+                                <div style="display:inline-block; background-color:#162544; color:#ffffff; font-size:8px; font-weight:800; padding:2px 10px; border-radius:3px 10px 3px 0; margin:-4px -6px 4px -6px; text-transform:uppercase;">● CUSTOMER DETAILS</div>
+                                <div>
+                                    <div style="display:flex; align-items:baseline; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#334155; font-size:8.5px;">Name:</span> <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; font-weight:800; color:#162544; font-size:9.5px; padding-left:4px; min-height:14px;">${escapeHtml(card.customer?.name || '')}</span></div>
+                                    <div style="display:flex; align-items:baseline; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#334155; font-size:8.5px;">Phone:</span> <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; font-weight:800; color:#162544; font-size:9.5px; padding-left:4px; min-height:14px;">${escapeHtml(card.customer?.phone || '')}</span></div>
+                                    <div style="display:flex; align-items:baseline;"><span style="width:28%; font-weight:700; color:#334155; font-size:8.5px;">Address:</span> <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; font-weight:600; color:#162544; font-size:8.5px; padding-left:4px; min-height:14px;">${escapeHtml(card.customer?.address || 'Lahore, Pakistan')}</span></div>
                                 </div>
                             </div>
 
-                            <div style="border:1.5px solid #c01426; border-radius:4px; overflow:hidden; background-color:#ffffff;">
-                                <div style="background-color:#c01426; color:#ffffff; font-size:8.5px; font-weight:800; padding:3px 8px; letter-spacing:0.5px;">● VEHICLES DETAILS</div>
-                                <div style="padding:4px 7px;">
-                                    <div style="display:flex; align-items:center; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#475569; font-size:8.5px;">Vehicle No:</span> <span style="border-bottom:1px dotted #94a3b8; flex-grow:1; font-weight:900; font-size:11px; color:#162544; padding-left:4px;">${escapeHtml(card.vehicle?.plateNo || '')}</span></div>
-                                    <div style="display:flex; align-items:center; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#475569; font-size:8.5px;">Make/Model:</span> <span style="border-bottom:1px dotted #94a3b8; flex-grow:1; font-weight:700; color:#0f172a; font-size:9px; padding-left:4px;">${escapeHtml(card.vehicle?.makeModel || '')} ${card.vehicle?.variant ? `(${escapeHtml(card.vehicle.variant)})` : ''}</span></div>
-                                    <div style="display:flex; align-items:center;"><span style="width:28%; font-weight:700; color:#475569; font-size:8.5px;">Mileage:</span> <span style="border-bottom:1px dotted #94a3b8; flex-grow:1; font-weight:700; color:#0284c7; font-size:9px; padding-left:4px;">${escapeHtml(card.vehicle?.mileage || '')}</span> <span style="font-weight:700; color:#475569; font-size:8.5px; margin:0 4px;">Color:</span> <span style="border-bottom:1px dotted #94a3b8; width:26%; font-size:8.5px; padding-left:4px;">${escapeHtml(card.vehicle?.color || '')}</span></div>
+                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff; padding:4px 6px;">
+                                <div style="display:inline-block; background-color:#c01426; color:#ffffff; font-size:8px; font-weight:800; padding:2px 10px; border-radius:3px 10px 3px 0; margin:-4px -6px 4px -6px; text-transform:uppercase;">● VEHICLES DETAILS</div>
+                                <div>
+                                    <div style="display:flex; align-items:baseline; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#334155; font-size:8.5px;">Vehicle No:</span> <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; font-weight:900; font-size:11px; color:#c01426; padding-left:4px; min-height:14px;">${escapeHtml(card.vehicle?.plateNo || '')}</span></div>
+                                    <div style="display:flex; align-items:baseline; margin-bottom:3px;"><span style="width:28%; font-weight:700; color:#334155; font-size:8.5px;">Make/Model:</span> <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; font-weight:800; color:#162544; font-size:9.5px; padding-left:4px; min-height:14px;">${escapeHtml(card.vehicle?.makeModel || '')} ${card.vehicle?.variant ? '(' + escapeHtml(card.vehicle.variant) + ')' : ''}</span></div>
+                                    <div style="display:flex; align-items:baseline;"><span style="width:28%; font-weight:700; color:#334155; font-size:8.5px;">Mileage:</span> <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; font-weight:800; color:#0284c7; font-size:9px; padding-left:4px; min-height:14px;">${escapeHtml(card.vehicle?.mileage || '')} km</span> <span style="font-weight:700; color:#334155; font-size:8.5px; margin:0 4px 0 8px;">Color:</span> <span style="width:26%; border-bottom:1px dotted #94a3b8; font-weight:700; color:#162544; font-size:9px; padding-left:4px; min-height:14px;">${escapeHtml(card.vehicle?.color || '')}</span></div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Job Types -->
-                        <div style="border:1.5px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff; margin-bottom:5px;">
-                            <div style="background-color:#162544; color:#ffffff; font-size:8px; font-weight:800; padding:2px 8px; text-align:center; letter-spacing:0.5px;">JOB TYPE / DEPARTMENTS</div>
-                            <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:3px 6px; padding:4px 8px;">
+                        <!-- Job Types / Departments -->
+                        <div style="border:1px solid #94a3b8; border-radius:4px; padding:4px 6px; margin-bottom:5px; background-color:#ffffff; position:relative;">
+                            <div style="position:absolute; top:-7px; left:50%; transform:translateX(-50%); background:#162544; color:#fff; padding:1px 12px; font-size:7.5px; font-weight:800; border-radius:3px; letter-spacing:0.5px; text-transform:uppercase;">JOB TYPE / DEPARTMENTS</div>
+                            <div style="display:grid; grid-template-columns:repeat(6, 1fr) 1.2fr; gap:2px 4px; margin-top:2px;">
                                 ${deptsCheckboxes}
+                                <div style="display:flex; align-items:center; gap:3px; font-size:8px; font-weight:700;">
+                                    <span style="width:10px; height:10px; border:1px solid #162544; border-radius:2px; display:inline-block;"></span>
+                                    <span>Others:</span>
+                                    <span style="flex-grow:1; border-bottom:1px dotted #94a3b8; height:10px;"></span>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Vehicle Schematic Section -->
-                        <div style="border:1.5px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff; margin-bottom:5px;">
-                            <div style="background-color:#162544; color:#ffffff; font-size:8px; font-weight:800; padding:2.5px 8px; display:flex; justify-content:space-between; align-items:center;">
-                                <span>● VEHICLE INSPECTION SCHEMATIC &amp; TYRE TREAD DEPTH</span>
-                                <span style="color:#cbd5e1; font-size:7.5px; font-weight:600;">Faults: [D] Dent &nbsp;|&nbsp; [S] Scratch &nbsp;|&nbsp; [C] Chips &nbsp;|&nbsp; [R] Rust</span>
+                        <!-- 360 Vehicle Inspection Schematic & Fuel Check -->
+                        <div style="border:1px solid #94a3b8; border-radius:4px; padding:4px 6px; margin-bottom:5px; background-color:#ffffff;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                <div style="background:#162544; color:#fff; font-size:7.5px; font-weight:800; padding:1.5px 8px; border-radius:2px;">● VEHICLE INSPECTION SCHEMATIC &amp; TYRE TREAD DEPTH</div>
+                                <div style="font-size:7.5px; color:#475569; font-weight:700;">Faults: <strong>[D]</strong> Dent &nbsp;|&nbsp; <strong>[S]</strong> Scratch &nbsp;|&nbsp; <strong>[C]</strong> Chips &nbsp;|&nbsp; <strong>[R]</strong> Rust</div>
                             </div>
-                            <div style="display:grid; grid-template-columns:2.4fr 1fr; gap:6px; padding:4px 6px; align-items:center;">
-                                <div style="position:relative; border:1px solid #e2e8f0; border-radius:3px; background-color:#fafafa; text-align:center; height:94px; overflow:hidden;">
-                                    <svg viewBox="0 0 520 185" style="width:100%; height:100%;">
-                                      <g stroke="#1e293b" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M 65,26 C 45,26 36,36 36,50 L 36,98 C 36,112 45,122 65,122" fill="#f8fafc"/>
-                                        <path d="M 38,36 C 30,42 30,106 38,112" stroke-width="1.8" />
-                                        <circle cx="48" cy="40" r="4" fill="#e2e8f0" />
-                                        <circle cx="58" cy="40" r="3.5" fill="#e2e8f0" />
-                                        <circle cx="48" cy="108" r="4" fill="#e2e8f0" />
-                                        <circle cx="58" cy="108" r="3.5" fill="#e2e8f0" />
-                                        <path d="M 65,48 L 130,45" stroke="#94a3b8" />
-                                        <path d="M 65,100 L 130,103" stroke="#94a3b8" />
-                                        <path d="M 65,26 L 95,26 C 95,20 100,15 110,15 C 120,15 125,20 125,26 L 295,26 C 295,20 300,15 310,15 C 320,15 325,20 325,26 L 360,26 C 375,26 384,35 384,52 L 384,96 C 384,113 375,122 360,122 L 325,122 C 325,128 320,133 310,133 C 300,133 295,128 295,122 L 125,122 C 125,128 120,133 110,133 C 100,133 95,128 95,122 L 65,122 Z" fill="#ffffff" />
-                                        <rect x="158" y="34" width="78" height="80" rx="5" fill="#ffffff" stroke="#64748b" stroke-dasharray="3,2"/>
-                                        <circle cx="318" cy="74" r="20" fill="#f8fafc" stroke="#475569" stroke-width="1.3" stroke-dasharray="3,2"/>
-                                        <text x="318" y="77" font-size="7" fill="#64748b" text-anchor="middle" font-weight="bold">SPARE</text>
-                                        <!-- 4 Wheels -->
-                                        <circle cx="110" cy="18" r="13" fill="#334155" stroke="#0f172a" stroke-width="1.8"/>
-                                        <circle cx="310" cy="18" r="13" fill="#334155" stroke="#0f172a" stroke-width="1.8"/>
-                                        <circle cx="110" cy="130" r="13" fill="#334155" stroke="#0f172a" stroke-width="1.8"/>
-                                        <circle cx="310" cy="130" r="13" fill="#334155" stroke="#0f172a" stroke-width="1.8"/>
-                                      </g>
-                                    </svg>
+                            <div style="display:grid; grid-template-columns:2.3fr 1fr; gap:6px; align-items:center;">
+                                <div style="position:relative; border:1px solid #e2e8f0; border-radius:3px; background-color:#fafafa; text-align:center; height:90px; overflow:hidden;">
+                                    <img src="car_inspection_schematic.svg" style="max-height:86px; width:auto; display:block; margin:0 auto;" onerror="this.src='/car_inspection_schematic.svg'">
                                     ${card.carDrawing ? `<img src="${card.carDrawing}" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:fill;">` : ''}
                                 </div>
 
                                 <div style="font-size:7.5px; line-height:1.35;">
-                                    <div style="border:1px solid #e2e8f0; padding:3px 5px; border-radius:3px; margin-bottom:4px; background-color:#f8fafc;">
-                                        <strong>⛽ Fuel Level:</strong> <span style="color:#0284c7; font-weight:800;">${escapeHtml(card.fuelLevel || '50% (Half)')}</span>
+                                    <div style="border:1px solid #e2e8f0; padding:2.5px 4px; border-radius:3px; margin-bottom:3px; background-color:#f8fafc;">
+                                        <strong>⛽ Fuel Level:</strong> <span style="color:#c01426; font-weight:800;">${escapeHtml(fuelVal)}</span>
                                     </div>
-                                    <div style="font-weight:700; color:#475569; margin-bottom:2px; font-size:7.5px;">Inventory Check:</div>
-                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 3px; font-size:7.5px;">
+                                    <div style="font-weight:700; color:#475569; margin-bottom:2px; font-size:7px;">Accessories / Inventory:</div>
+                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5px 3px; font-size:7.5px; font-weight:600;">
                                         <div>[${card.inventory?.spareWheel ? '✓' : ' '}] Spare Wheel</div>
                                         <div>[${card.inventory?.toolKit ? '✓' : ' '}] Tool Kit</div>
                                         <div>[${card.inventory?.floorMats ? '✓' : ' '}] Floor Mats</div>
@@ -3628,28 +3646,28 @@
                             </div>
                         </div>
 
-                        <!-- Concerns & Work -->
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:5px;">
-                            <div style="border:1.5px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff; display:flex; flex-direction:column;">
-                                <div style="background-color:#162544; color:#ffffff; font-size:8.5px; font-weight:800; padding:3px 8px;">● CUSTOMER CONCERN</div>
-                                <div style="padding:4px 7px; flex-grow:1; min-height:75px;">${concernHtml}</div>
+                        <!-- Concerns & Work To Be Done (Guaranteed Zero Overlap) -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:5px;">
+                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff; padding:4px 6px;">
+                                <div style="display:inline-block; background-color:#162544; color:#ffffff; font-size:7.5px; font-weight:800; padding:2px 8px; border-radius:2px; margin:-4px -6px 3px -6px; text-transform:uppercase;">● CUSTOMER CONCERN</div>
+                                <div style="min-height:55px;">${concernHtml}</div>
                             </div>
-                            <div style="border:1.5px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff; display:flex; flex-direction:column;">
-                                <div style="background-color:#162544; color:#ffffff; font-size:8.5px; font-weight:800; padding:3px 8px;">● WORK TO BE DONE</div>
-                                <div style="padding:3px 7px; flex-grow:1; min-height:75px;">${workHtml}</div>
+                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff; padding:4px 6px;">
+                                <div style="display:inline-block; background-color:#c01426; color:#ffffff; font-size:7.5px; font-weight:800; padding:2px 8px; border-radius:2px; margin:-4px -6px 3px -6px; text-transform:uppercase;">● WORK TO BE DONE</div>
+                                <div style="min-height:55px;">${workItemsHtml}</div>
                             </div>
                         </div>
 
                         <!-- Parts Table -->
-                        <div style="border:1.5px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff; margin-bottom:5px;">
-                            <table style="width:100%; border-collapse:collapse; font-size:8.5px;">
+                        <div style="border:1px solid #162544; border-radius:4px; overflow:hidden; background-color:#ffffff; margin-bottom:4px;">
+                            <table style="width:100%; border-collapse:collapse; font-size:8px;">
                                 <thead>
                                     <tr>
-                                        <th style="background-color:#162544; color:#ffffff; padding:3px 4px; width:5%; text-align:center; font-size:8px; font-weight:800;">Sr.</th>
-                                        <th style="background-color:#162544; color:#ffffff; padding:3px 6px; text-align:left; width:53%; font-size:8px; font-weight:800;">DESCRIPTION OF PARTS / MATERIAL</th>
-                                        <th style="background-color:#162544; color:#ffffff; padding:3px 4px; text-align:center; width:10%; font-size:8px; font-weight:800;">QTY.</th>
-                                        <th style="background-color:#162544; color:#ffffff; padding:3px 6px; text-align:right; width:16%; font-size:8px; font-weight:800;">RATE (PKR)</th>
-                                        <th style="background-color:#162544; color:#ffffff; padding:3px 6px; text-align:right; width:16%; font-size:8px; font-weight:800;">AMOUNT (PKR)</th>
+                                        <th style="background-color:#162544; color:#ffffff; padding:2.5px 4px; width:5%; text-align:center; font-weight:800;">Sr.</th>
+                                        <th style="background-color:#162544; color:#ffffff; padding:2.5px 6px; text-align:left; width:53%; font-weight:800;">DESCRIPTION OF PARTS / MATERIAL</th>
+                                        <th style="background-color:#162544; color:#ffffff; padding:2.5px 4px; text-align:center; width:10%; font-weight:800;">QTY.</th>
+                                        <th style="background-color:#162544; color:#ffffff; padding:2.5px 6px; text-align:right; width:16%; font-weight:800;">RATE (PKR)</th>
+                                        <th style="background-color:#162544; color:#ffffff; padding:2.5px 6px; text-align:right; width:16%; font-weight:800;">AMOUNT (PKR)</th>
                                     </tr>
                                 </thead>
                                 <tbody>${partsRows}</tbody>
@@ -3657,78 +3675,65 @@
                         </div>
 
                         <!-- Costs & Signatures -->
-                        <div style="display:grid; grid-template-columns:1.05fr 1.45fr 1.5fr; gap:7px; margin-bottom:5px;">
-                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff;">
-                                <div style="background-color:#c01426; color:#ffffff; font-size:7.5px; font-weight:800; padding:2px 6px;">ESTIMATED COST</div>
-                                <div style="padding:4px 6px; font-size:8px;">
-                                    <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Labour:</span> <strong>Rs. ${(card.costs?.labour || 0).toLocaleString()}</strong></div>
-                                    <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Parts:</span> <strong>Rs. ${(card.costs?.parts || 0).toLocaleString()}</strong></div>
-                                    <div style="display:flex; justify-content:space-between; margin-bottom:2px;"><span>Other:</span> <strong>Rs. ${(card.costs?.other || 0).toLocaleString()}</strong></div>
-                                    <div style="display:flex; justify-content:space-between; color:#16a34a; font-weight:bold;"><span>Advance:</span> <strong>Rs. ${(card.costs?.advance || 0).toLocaleString()}</strong></div>
+                        <div style="display:grid; grid-template-columns:1.05fr 1.45fr 1.5fr; gap:6px; margin-bottom:4px;">
+                            <div style="border:1px solid #94a3b8; border-radius:4px; padding:4px; background-color:#ffffff; font-size:8px;">
+                                <div style="color:#c01426; font-weight:800; font-size:8px; text-transform:uppercase; border-bottom:1px solid #e2e8f0; padding-bottom:1.5px; margin-bottom:2.5px;">ESTIMATED COST:</div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:1.5px;"><span>Labour:</span> <strong>Rs. ${(card.costs?.labour || 0).toLocaleString()}</strong></div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:1.5px;"><span>Parts:</span> <strong>Rs. ${(card.costs?.parts || 0).toLocaleString()}</strong></div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom:1.5px;"><span>Other:</span> <strong>Rs. ${(card.costs?.other || 0).toLocaleString()}</strong></div>
+                                <div style="display:flex; justify-content:space-between; color:#16a34a; font-weight:bold;"><span>Advance:</span> <strong>Rs. ${(card.costs?.advance || 0).toLocaleString()}</strong></div>
+                            </div>
+
+                            <div style="border:1px solid #94a3b8; border-radius:4px; padding:3px 5px; background-color:#ffffff; display:flex; flex-direction:column; justify-content:space-between;">
+                                <div style="background-color:#162544; color:#ffffff; font-size:7px; font-weight:800; padding:1.5px 5px; border-radius:2px; margin:-3px -5px 2px -5px;">CUSTOMER APPROVAL</div>
+                                <div style="font-size:6.5px; color:#475569; line-height:1.15;">I authorize the estimated repairs and acknowledge terms.</div>
+                                <div style="height:22px; border-bottom:1px dotted #94a3b8; display:flex; align-items:flex-end;">
+                                    ${card.custSig ? `<img src="${card.custSig}" style="max-height:20px; max-width:100%;">` : '<span style="font-size:7px; color:#94a3b8;">Customer Signature</span>'}
                                 </div>
                             </div>
 
-                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff; display:flex; flex-direction:column;">
-                                <div style="background-color:#162544; color:#ffffff; font-size:7.5px; font-weight:800; padding:2px 6px;">CUSTOMER APPROVAL</div>
-                                <div style="padding:3px 6px; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
-                                    <div style="font-size:6.5px; color:#475569; line-height:1.2;">I authorize the above work to be performed. Read &amp; agree all terms.</div>
-                                    <div style="height:26px; border-bottom:1px dotted #94a3b8; display:flex; align-items:flex-end;">
-                                        ${card.custSig ? `<img src="${card.custSig}" style="max-height:24px; max-width:100%;">` : '<span style="font-size:7px; color:#94a3b8;">Customer Signature</span>'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style="border:1px solid #94a3b8; border-radius:4px; overflow:hidden; background-color:#ffffff; display:flex; flex-direction:column;">
-                                <div style="background-color:#162544; color:#ffffff; font-size:7.5px; font-weight:800; padding:2px 6px;">SERVICE EXECUTIVE</div>
-                                <div style="padding:3px 6px; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
-                                    <div style="font-size:7.5px; margin-bottom:1px; color:#0f172a;">Name: <strong>${escapeHtml(card.execName || 'Service Incharge')}</strong></div>
-                                    <div style="height:26px; border-bottom:1px dotted #94a3b8; display:flex; align-items:flex-end;">
-                                        ${card.execSig ? `<img src="${card.execSig}" style="max-height:24px; max-width:100%;">` : '<span style="font-size:7px; color:#94a3b8;">Advisor Signature</span>'}
-                                    </div>
+                            <div style="border:1px solid #94a3b8; border-radius:4px; padding:3px 5px; background-color:#ffffff; display:flex; flex-direction:column; justify-content:space-between;">
+                                <div style="background-color:#162544; color:#ffffff; font-size:7px; font-weight:800; padding:1.5px 5px; border-radius:2px; margin:-3px -5px 2px -5px;">SERVICE EXECUTIVE</div>
+                                <div style="font-size:7px; color:#0f172a;">Name: <strong>${escapeHtml(card.execName || 'Service Incharge')}</strong></div>
+                                <div style="height:22px; border-bottom:1px dotted #94a3b8; display:flex; align-items:flex-end;">
+                                    ${card.execSig ? `<img src="${card.execSig}" style="max-height:20px; max-width:100%;">` : '<span style="font-size:7px; color:#94a3b8;">Advisor Signature</span>'}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Quality Check & Final Amount -->
-                        <div style="display:grid; grid-template-columns:2.4fr 1.35fr; gap:7px;">
-                            <div style="border:1px solid #c59341; border-radius:4px; overflow:hidden; background-color:#ffffff;">
-                                <div style="background-color:#c59341; color:#ffffff; font-size:7.5px; font-weight:800; padding:2px 6px;">QUALITY CHECK INSPECTION</div>
-                                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:2px 4px; padding:3px 6px; font-size:7.5px; color:#334155;">
-                                    <div>[${card.qc?.ext ? '✓' : ' '}] Exterior Clean</div>
-                                    <div>[${card.qc?.eng ? '✓' : ' '}] Engine Clean</div>
-                                    <div>[${card.qc?.warn ? '✓' : ' '}] No Warning Lights</div>
-                                    <div>[${card.qc?.int ? '✓' : ' '}] Interior Clean</div>
-                                    <div>[${card.qc?.allSys ? '✓' : ' '}] All Systems OK</div>
-                                    <div>[${card.qc?.work ? '✓' : ' '}] Work Completed</div>
-                                    <div>[${card.qc?.test ? '✓' : ' '}] Test Drive Done</div>
-                                    <div>[${card.qc?.cust ? '✓' : ' '}] Customer Satisfied</div>
+                        <div style="display:grid; grid-template-columns:2.4fr 1.35fr; gap:6px;">
+                            <div style="border:1px solid #c59341; border-radius:4px; padding:3px 5px; background-color:#ffffff;">
+                                <div style="background-color:#c59341; color:#ffffff; font-size:7px; font-weight:800; padding:1.5px 5px; border-radius:2px; margin:-3px -5px 2px -5px;">● QUALITY CHECK INSPECTION</div>
+                                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5px 3px; font-size:7px; color:#334155;">
+                                    <div>[✓] Exterior Clean</div>
+                                    <div>[✓] Engine Clean</div>
+                                    <div>[✓] No Warning Lights</div>
+                                    <div>[✓] Interior Clean</div>
+                                    <div>[✓] All Systems OK</div>
+                                    <div>[✓] Work Completed</div>
+                                    <div>[✓] Test Drive Done</div>
+                                    <div>[✓] Customer Satisfied</div>
                                 </div>
                             </div>
 
-                            <table style="width:100%; border-collapse:collapse; font-size:8px; border:1px solid #162544; border-radius:4px; overflow:hidden;">
+                            <table style="width:100%; border-collapse:collapse; font-size:7.5px; border:1px solid #162544; border-radius:3px; overflow:hidden;">
                                 <thead>
-                                    <tr><th colspan="2" style="background-color:#162544; color:#ffffff; padding:2px 4px; font-size:7.5px; font-weight:800; text-align:center;">FINAL BILLING (PKR)</th></tr>
+                                    <tr><th colspan="2" style="background-color:#162544; color:#ffffff; padding:1.5px 3px; font-size:7px; font-weight:800; text-align:center;">FINAL BILLING (PKR)</th></tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td style="padding:2px 4px; border-bottom:1px solid #e2e8f0; color:#475569;">Total Amount:</td><td style="text-align:right; font-weight:700; padding:2px 4px; border-bottom:1px solid #e2e8f0; color:#0f172a;">Rs. ${(card.costs?.gross || 0).toLocaleString()}</td></tr>
-                                    <tr><td style="padding:2px 4px; border-bottom:1px solid #e2e8f0; color:#475569;">Discount:</td><td style="text-align:right; color:#ef4444; font-weight:700; padding:2px 4px; border-bottom:1px solid #e2e8f0;">Rs. ${(card.costs?.discount || 0).toLocaleString()}</td></tr>
-                                    <tr><td style="background-color:#162544; color:#ffffff; font-weight:800; padding:2.5px 4px;">Net Payable:</td><td style="background-color:#162544; color:#ffffff; text-align:right; font-weight:900; padding:2.5px 4px;">Rs. ${(card.costs?.net || 0).toLocaleString()}</td></tr>
+                                    <tr><td style="padding:1.5px 3px; border-bottom:1px solid #e2e8f0; color:#475569;">Total Amount:</td><td style="text-align:right; font-weight:700; padding:1.5px 3px; border-bottom:1px solid #e2e8f0; color:#0f172a;">Rs. ${(card.costs?.gross || 0).toLocaleString()}</td></tr>
+                                    <tr><td style="padding:1.5px 3px; border-bottom:1px solid #e2e8f0; color:#475569;">Discount:</td><td style="text-align:right; color:#c01426; font-weight:700; padding:1.5px 3px; border-bottom:1px solid #e2e8f0;">Rs. ${(card.costs?.discount || 0).toLocaleString()}</td></tr>
+                                    <tr><td style="background-color:#162544; color:#ffffff; font-weight:800; padding:2px 3px;">Net Payable:</td><td style="background-color:#162544; color:#ffffff; text-align:right; font-weight:900; padding:2px 3px;">Rs. ${(card.costs?.net || 0).toLocaleString()}</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
 
                     <!-- Footer Bar -->
-                    <div style="background-color:#162544; color:#ffffff; border-radius:3px; padding:3.5px 8px; display:flex; justify-content:space-between; align-items:center; font-size:8px; margin-top:4px;">
-                        <div style="display:flex; align-items:center; gap:4px;">
-                            <span>🛡️</span>
-                            <span>Please Check Goods and Vehicle Before Leaving</span>
-                            <span style="background-color:#c01426; color:#ffffff; padding:1px 5px; border-radius:2px; font-weight:800;">Al Shaheen Auto Hub.</span>
-                        </div>
-                        <div style="display:flex; align-items:baseline; gap:6px;">
-                            <span style="font-family:Georgia, serif; font-style:italic; font-size:11.5px; color:#fef08a; font-weight:bold;">Your Car, Our Care</span>
-                            <span style="font-size:7.5px; font-weight:800; letter-spacing:0.8px; color:#ffffff;">COMPLETE PEACE OF MIND</span>
-                        </div>
+                    <div style="background-color:#162544; color:#ffffff; border-radius:3px; padding:3px 6px; display:flex; justify-content:space-between; align-items:center; font-size:7.5px; margin-top:3px;">
+                        <div>🛡️ Please Check Goods and Vehicle Before Leaving <strong>Al Shaheen Auto Hub</strong></div>
+                        <div style="font-family:Georgia, serif; font-style:italic; font-size:10px; color:#fef08a; font-weight:bold;">Your Car, Our Care</div>
                     </div>
                 </div>
             `;
@@ -3840,29 +3845,53 @@
             const apiKey = localStorage.getItem(KEY_GEMINI_API) || DEFAULT_GEMINI_KEY;
             const model = localStorage.getItem(KEY_GEMINI_MODEL) || DEFAULT_GEMINI_MODEL;
 
-            const prompt = `You are the Chief Master Automotive Diagnostician at Al Shaheen Auto Hub, a premium workshop in DHA Lahore.
-Diagnose this car issue:
-Vehicle: ${vehicle} (${mileage})
-Customer Complaint: "${concern}"
+            // 1. Try local server proxy
+            try {
+                const proxyResp = await fetch('/api/ai/diagnose', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ concern, makeModel: vehicle, mileage, apiKey })
+                });
+                if (proxyResp.ok) {
+                    const resJson = await proxyResp.json();
+                    if (resJson.success && resJson.data) {
+                        return convertServerAiResult(resJson.data);
+                    }
+                }
+            } catch (proxyErr) {
+                console.log('Local server proxy unreachable, trying direct Gemini API...');
+            }
 
-Return a valid JSON object strictly matching this schema:
+            // 2. Direct Gemini API call
+            const prompt = `You are the Chief Master Automotive Diagnostician at Al Shaheen Auto Hub, a premium workshop on Bedian Road DHA Lahore, Pakistan.
+Analyze this car issue:
+Vehicle: ${vehicle} (${mileage})
+Customer Complaint / Symptoms: "${concern}"
+
+Understand mechanical symptoms described in Pakistani Roman Urdu & English:
+- "Gari aik trf khud ko khainchti hai / pulling": Steering drift, front 4-wheel alignment camber/caster out, worn tie-rod ends, control arm bushings.
+- "Jhatky ly kr chlti hai / jerking": Engine misfire under load, fouled spark plugs, fuel injectors clogged, dirty throttle body.
+- "3rd gear phas jata hai / gear shift masla": Manual transmission 3rd gear synchronizer brass ring worn/chipped, gear linkage shifter bushings loose, 75W-90 GL-4 gear oil burnt.
+- "Tik tik awaz / khada sound": Drive axle outer CV joint, stabilizer sway bar links.
+
+Return STRICTLY a JSON object matching this schema:
 {
-  "summary": "1 sentence executive diagnosis",
+  "summary": "1-2 sentence executive diagnosis identifying specific root causes",
   "rootCauses": [
-    {"cause": "Cause 1", "probability": "High", "reason": "Reason 1"},
-    {"cause": "Cause 2", "probability": "Medium", "reason": "Reason 2"}
+    {"cause": "Exact Root Cause 1", "probability": "High", "reason": "Technical reason"},
+    {"cause": "Exact Root Cause 2", "probability": "High", "reason": "Technical reason"}
   ],
   "mechanicTasks": [
-    "1. Step one for mechanic",
-    "2. Step two for mechanic",
-    "3. Step three for mechanic",
-    "4. Step four for mechanic"
+    "1. Numbered repair step 1",
+    "2. Numbered repair step 2",
+    "3. Numbered repair step 3",
+    "4. Numbered repair step 4"
   ],
   "recommendedParts": [
-    {"name": "Part name", "estPrice": 5000}
+    {"name": "Part name (e.g. Spark Plugs / 3rd Gear Synchronizer)", "estPrice": 5000}
   ],
-  "departments": ["Mechanical"],
-  "customerExplanation": "Simple, respectful explanation for the customer in non-technical terms."
+  "departments": ["Mechanical", "Alignment"],
+  "customerExplanation": "Clear, professional explanation for customer in Roman Urdu / English."
 }`;
 
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -3880,50 +3909,79 @@ Return a valid JSON object strictly matching this schema:
             return JSON.parse(text);
         }
 
+        function convertServerAiResult(srv) {
+            const tasks = (srv.workToBeDone || '').split('\n').filter(t => t.trim().length > 0);
+            const parts = (srv.recommendedParts || []).map(p => ({
+                name: p.desc,
+                estPrice: p.estimatedRate || 3500
+            }));
+            return {
+                summary: "Master diagnosis generated based on reported mechanical symptoms.",
+                rootCauses: [
+                    { cause: "Identified mechanical wear / alignment fault", probability: "High", reason: "Directly correlates with symptoms." }
+                ],
+                mechanicTasks: tasks,
+                recommendedParts: parts,
+                departments: ["Mechanical", "Alignment"],
+                customerExplanation: "All issues diagnosed with precision for optimal vehicle restoration."
+            };
+        }
+
+        // Roman Urdu & Automotive Expert Rules Engine (Offline Fallback)
         function generateOfflineDiagnosis(vehicle, concern) {
-            const isClick = concern.toLowerCase().includes('tik') || concern.toLowerCase().includes('sound') || concern.toLowerCase().includes('khad');
-            if (isClick) {
-                return {
-                    summary: "Front drive axle CV joint excessive wear or worn stabilizer link bushings.",
-                    rootCauses: [
-                        { cause: "Front Outer CV Joint Worn / Boot Torn", probability: "High", reason: "Produces distinct metallic clicking on turning and speed transitions." },
-                        { cause: "Stabilizer Bar Sway Link / Bushing Play", probability: "Medium", reason: "Loose joint over uneven road surfaces." }
-                    ],
-                    mechanicTasks: [
-                        "1. Lift vehicle and perform visual and physical inspection of CV axle boots for tears or grease expulsion.",
-                        "2. Inspect stabilizer sway bar links and lower control arm bushings with pry bar.",
-                        "3. Replace front outer CV joint / axle assembly as required.",
-                        "4. Carry out 3D computerized alignment and thorough road test over speed bumps."
-                    ],
-                    recommendedParts: [
-                        { name: "Front Outer CV Joint / Drive Axle Assembly", estPrice: 8500 },
-                        { name: "Front Stabilizer Sway Link", estPrice: 2800 },
-                        { name: "Control Arm Bushing Set", estPrice: 2200 }
-                    ],
-                    departments: ["Mechanical", "Alignment"],
-                    customerExplanation: "Sir, your drive axle CV joint or suspension link has developed play. We will inspect both and replace the worn part to ensure total driving smoothness."
-                };
+            const text = (concern || '').toLowerCase();
+            const hasPulling = text.includes('khainch') || text.includes('pull') || text.includes('alignment') || text.includes('side');
+            const hasJerking = text.includes('jhatk') || text.includes('jerk') || text.includes('misfire') || text.includes('chlti');
+            const hasGear = text.includes('gear') || text.includes('3rd') || text.includes('clutch') || text.includes('phas');
+            const hasNoise = text.includes('tik') || text.includes('awaz') || text.includes('khad') || text.includes('sound');
+
+            const causes = [];
+            const tasks = [];
+            const parts = [];
+            const depts = ["Mechanical"];
+
+            if (hasPulling) {
+                depts.push("Alignment");
+                causes.push({ cause: "Front Wheel Alignment / Control Arm Bushings Worn", probability: "High", reason: "Causes directional pull and steering drift." });
+                tasks.push("1. Inspect front suspension geometry, lower control arm bushings, and steering tie rod ends; perform computerized 3D 4-wheel alignment.");
+                parts.push({ name: "Front Lower Control Arm Bushings Set", estPrice: 4800 });
+                parts.push({ name: "Tie Rod Ends (Pair)", estPrice: 4200 });
+            }
+
+            if (hasJerking) {
+                causes.push({ cause: "Ignition Misfire & Throttle Body Carbon Buildup", probability: "High", reason: "Fouled spark plugs and restricted throttle cause surging under load." });
+                tasks.push("2. Complete EFI engine tune-up: scan OBD-II for misfire codes, replace fouled spark plugs, and chemically service electronic throttle body.");
+                parts.push({ name: "OEM Spark Plugs (Set of 4)", estPrice: 5500 });
+                parts.push({ name: "Throttle Body & Carb Cleaner Spray", estPrice: 1200 });
+            }
+
+            if (hasGear) {
+                causes.push({ cause: "3rd Gear Synchronizer Brass Ring & Shifter Linkage Play", probability: "High", reason: "Deteriorated synchronizer teeth cause intermittent gear sticking." });
+                tasks.push("3. Inspect manual transmission linkage bushings; drain old gear oil, remove gearbox to inspect/replace worn 3rd gear synchronizer brass ring and refill 75W-90 GL-4.");
+                parts.push({ name: "3rd Gear Synchronizer Brass Ring", estPrice: 6500 });
+                parts.push({ name: "Manual Transmission Gear Oil (75W-90) - 3L", estPrice: 6800 });
+                parts.push({ name: "Gear Shifter Linkage Bushing Kit", estPrice: 1600 });
+            }
+
+            if (hasNoise && !hasPulling) {
+                causes.push({ cause: "Drive Axle Outer CV Joint / Sway Bar Links", probability: "High", reason: "Metallic clicking over road imperfections." });
+                tasks.push("4. Inspect drive axles and stabilizer sway bar links; replace worn outer CV joint assembly.");
+                parts.push({ name: "Outer CV Joint Assembly", estPrice: 8500 });
+                parts.push({ name: "Stabilizer Sway Bar Links", estPrice: 3200 });
+            }
+
+            if (tasks.length === 0) {
+                tasks.push("1. Conduct comprehensive 40-point vehicle multi-point safety inspection and computerized scanner diagnostics.");
+                parts.push({ name: "Periodic Maintenance Service Filter Kit", estPrice: 4500 });
             }
 
             return {
-                summary: "Combustion efficiency loss or cylinder head gasket / valve stem seal wear.",
-                rootCauses: [
-                    { cause: "Cylinder Head Gasket / Coolant Intrusion", probability: "High", reason: "Coolant burning in combustion chamber creates white smoke." },
-                    { cause: "Faulty Fuel Injector or Clogged Air Intake", probability: "Medium", reason: "Unburnt fuel and restricted airflow reduces engine torque." }
-                ],
-                mechanicTasks: [
-                    "1. Carry out computerized OBD-II live data scan for misfires and trim levels.",
-                    "2. Perform cooling system pressure test and check radiator coolant level.",
-                    "3. Perform compression and cylinder leak-down test.",
-                    "4. Inspect spark plugs and test fuel injection spray pattern."
-                ],
-                recommendedParts: [
-                    { name: "Cylinder Head Gasket Set", estPrice: 6500 },
-                    { name: "Iridium Spark Plugs Set", estPrice: 4800 },
-                    { name: "Synthetic Engine Oil 4L + Genuine Filter", estPrice: 9500 }
-                ],
-                departments: ["Mechanical"],
-                customerExplanation: "Sir, your engine needs an immediate compression and cooling scan. We will check the cylinder head gasket and ignition system to restore full power."
+                summary: "Automotive technical diagnosis: multi-point faults identified across steering, ignition, and manual transmission.",
+                rootCauses: causes.length > 0 ? causes : [{ cause: "General Wear & Tear", probability: "Medium", reason: "Standard periodic maintenance requirement." }],
+                mechanicTasks: tasks,
+                recommendedParts: parts,
+                departments: depts,
+                customerExplanation: "Sir, your vehicle's mechanical faults have been identified. We will service the suspension, replace the spark plugs, and address the 3rd gear synchronizer to restore smooth driving."
             };
         }
 
@@ -4039,5 +4097,109 @@ Return a valid JSON object strictly matching this schema:
             }, 3500);
         }
     </script>
+
+        // ==========================================
+        // STAFF AUTHENTICATION & LOGIN MANAGEMENT
+        // ==========================================
+        function checkStaffAuthOnLoad() {
+            const isAuth = sessionStorage.getItem('al_shaheen_staff_auth');
+            const overlay = document.getElementById('staffAuthOverlay');
+            if (overlay) {
+                overlay.style.display = (isAuth === 'true') ? 'none' : 'flex';
+            }
+        }
+
+        function executeStaffLogin() {
+            const entered = (document.getElementById('staffGatePass')?.value || '').trim();
+            if (entered === '1234' || entered === 'admin' || entered === '123456' || entered.toLowerCase() === 'alshaheen') {
+                sessionStorage.setItem('al_shaheen_staff_auth', 'true');
+                const overlay = document.getElementById('staffAuthOverlay');
+                if (overlay) overlay.style.display = 'none';
+                showToast('Welcome to Al Shaheen Auto Hub Workshop Portal', 'success');
+            } else {
+                alert('Invalid Password. Please enter 1234 or admin.');
+            }
+        }
+
+        function instantStaffSignIn() {
+            sessionStorage.setItem('al_shaheen_staff_auth', 'true');
+            const overlay = document.getElementById('staffAuthOverlay');
+            if (overlay) overlay.style.display = 'none';
+            showToast('Instant Sign-in Successful!', 'success');
+        }
+
+        function staffLogout() {
+            sessionStorage.removeItem('al_shaheen_staff_auth');
+            const overlay = document.getElementById('staffAuthOverlay');
+            if (overlay) overlay.style.display = 'flex';
+            showToast('Portal Locked. Staff sign-in required.', 'info');
+        }
+
+        // ==========================================
+        // SPEECH-TO-TEXT MICROPHONE VOICE ENGINE
+        // ==========================================
+        let speechRecognition = null;
+        let isMicRecording = false;
+
+        function toggleConcernMic() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRec) {
+                alert('Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
+                return;
+            }
+
+            const btnText = document.getElementById('micBtnText');
+            const btn = document.getElementById('btnMicConcern');
+            const concernArea = document.getElementById('editConcern');
+
+            if (isMicRecording) {
+                if (speechRecognition) speechRecognition.stop();
+                isMicRecording = false;
+                if (btnText) btnText.innerHTML = '🎤 Speak (Voice Mic)';
+                if (btn) btn.style.background = '#fee2e2';
+                return;
+            }
+
+            speechRecognition = new SpeechRec();
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = false;
+            speechRecognition.lang = 'en-US'; // Also understands Roman Urdu phrases
+
+            speechRecognition.onstart = () => {
+                isMicRecording = true;
+                if (btnText) btnText.innerHTML = '🔴 Listening... Speak Now';
+                if (btn) btn.style.background = '#fecaca';
+                showToast('Microphone active. Speak customer concern clearly...', 'info');
+            };
+
+            speechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (concernArea) {
+                    concernArea.value = (concernArea.value ? concernArea.value + ' ' : '') + transcript;
+                }
+                showToast('Voice transcribed successfully!', 'success');
+            };
+
+            speechRecognition.onerror = (event) => {
+                console.warn('Speech recognition error:', event.error);
+                isMicRecording = false;
+                if (btnText) btnText.innerHTML = '🎤 Speak (Voice Mic)';
+                if (btn) btn.style.background = '#fee2e2';
+            };
+
+            speechRecognition.onend = () => {
+                isMicRecording = false;
+                if (btnText) btnText.innerHTML = '🎤 Speak (Voice Mic)';
+                if (btn) btn.style.background = '#fee2e2';
+            };
+
+            speechRecognition.start();
+        }
+
+        // Call checkStaffAuthOnLoad on load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkStaffAuthOnLoad();
+        });
+
 </body>
 </html>

@@ -193,11 +193,39 @@ function generatePrintMarkup(card) {
             <div class="official-concern-work-grid">
                 <div class="official-ruled-box">
                     <div class="official-tab-badge navy" style="margin:-4px -6px 4px -6px;">● CUSTOMER CONCERN</div>
-                    <div class="official-ruled-content">${escapeHtml(card.concern || 'Standard maintenance check and periodic servicing requested.')}</div>
+                    <div style="padding: 3px 2px; min-height: 56px;">
+                        ${(card.concern || '').trim() ? 
+                            `<div style="font-size:8.5px; line-height:1.45; font-weight:600; color:#0f172a; word-break:break-word;">${escapeHtml(card.concern)}</div>` : 
+                            `<div style="height:17px; border-bottom:1px dotted #cbd5e1;"></div><div style="height:17px; border-bottom:1px dotted #cbd5e1;"></div><div style="height:17px; border-bottom:1px dotted #cbd5e1;"></div>`
+                        }
+                    </div>
                 </div>
                 <div class="official-ruled-box">
                     <div class="official-tab-badge red" style="margin:-4px -6px 4px -6px;">● WORK TO BE DONE</div>
-                    <div class="official-ruled-content">${escapeHtml(card.workToBeDone || 'Perform complete vehicle diagnostic scan, mechanical check, and specified repairs.')}</div>
+                    <div style="padding: 2px 2px; min-height: 56px;">
+                        ${(() => {
+                            const rawWorks = (card.workToBeDone || card.workDone || '').split('\n').map(w => w.trim()).filter(w => w.length > 0);
+                            let out = '';
+                            if (rawWorks.length > 0) {
+                                rawWorks.forEach((t, i) => {
+                                    const cleanText = t.replace(/^\d+[\.\-\)]\s*/, '');
+                                    out += `
+                                        <div style="font-size:8px; line-height:1.35; color:#0f172a; padding:2px 0; border-bottom:1px dotted #cbd5e1; word-break:break-word;">
+                                            <strong style="color:#162544;">${i + 1}.</strong> ${escapeHtml(cleanText)}
+                                        </div>
+                                    `;
+                                });
+                                for (let i = rawWorks.length; i < 4; i++) {
+                                    out += `<div style="height:15px; border-bottom:1px dotted #cbd5e1; font-size:8px; color:#94a3b8; display:flex; align-items:center;"><strong style="color:#94a3b8;">${i + 1}.</strong></div>`;
+                                }
+                            } else {
+                                for (let i = 0; i < 4; i++) {
+                                    out += `<div style="height:15px; border-bottom:1px dotted #cbd5e1; font-size:8px; color:#94a3b8; display:flex; align-items:center;"><strong style="color:#94a3b8;">${i + 1}.</strong></div>`;
+                                }
+                            }
+                            return out;
+                        })()}
+                    </div>
                 </div>
             </div>
 
