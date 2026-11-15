@@ -1,10 +1,93 @@
 [
   {
+    "id": "ASH-969448",
+    "createdAt": "2026-11-15T12:27:04.207Z",
+    "deliveryDue": "2026-11-15T17:27:04.207Z",
+    "status": "Ready",
+    "currentBay": "Bay 6",
+    "customer": {
+      "name": "Haider",
+      "phone": "03364315848",
+      "address": "Lahore"
+    },
+    "vehicle": {
+      "plateNo": "AQP 007",
+      "makeModel": "Mazda Flair 007",
+      "mileage": "45000",
+      "color": "Red",
+      "fuelLevel": 25
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "Mechanical",
+      "Car Wash",
+      "General Service"
+    ],
+    "concern": "gari k engine sy tik tik ki awazain a rhi hain",
+    "workToBeDone": "1. Inspect front shock absorbers, strut mount bearings, and drive axles for fluid leakage and abnormal play.\n2. Check stabilizer sway bar links and rubber D-bushings; road-test over speed bumps to verify contact noise elimination.",
+    "parts": [
+      {
+        "desc": "Front Outer CV Joint & Axle Boot Assembly",
+        "qty": 1,
+        "rate": 0,
+        "amount": 0
+      },
+      {
+        "desc": "Front Stabilizer Sway Bar Drop Links (Pair)",
+        "qty": 1,
+        "rate": 0,
+        "amount": 0
+      }
+    ],
+    "labour": 0,
+    "otherCharges": 0,
+    "discount": 0,
+    "advance": 0,
+    "subTotal": 0,
+    "netPayable": 0,
+    "balance": 0,
+    "serviceAdvisor": "Service Incharge",
+    "damageMarkers": [
+      {
+        "type": "D",
+        "x": 0.1713043212890625,
+        "y": 0.4139129638671875
+      },
+      {
+        "type": "D",
+        "x": 0.6604347560716712,
+        "y": 0.2704347029976223
+      },
+      {
+        "type": "D",
+        "x": 0.6539130169412364,
+        "y": 0.5486955725628396
+      },
+      {
+        "type": "D",
+        "x": 0.2539130169412364,
+        "y": 0.2704347029976223
+      },
+      {
+        "type": "D",
+        "x": 0.26695649520210596,
+        "y": 0.5486955725628396
+      }
+    ],
+    "paymentCleared": false,
+    "closedAt": "2026-11-15T12:35:08.841Z"
+  },
+  {
     "id": "ASH-414288",
     "createdAt": "2026-11-15T11:50:53.606Z",
     "deliveryDue": "2026-11-15T16:50:53.606Z",
-    "status": "Paid & Delivered",
-    "currentBay": "Delivered (Closed)",
+    "status": "In Progress",
+    "currentBay": "Bay 4",
     "customer": {
       "name": "Haider",
       "phone": "03364331888",
@@ -24,25 +107,38 @@
       "valuablesOut": true
     },
     "departments": [
-      "Mechanical"
+      "Mechanical",
+      "General Service"
     ],
     "concern": "Break sahi nhi lag rhi, na agli na pichli",
-    "workToBeDone": "1. Perform 40-point vehicle multi-point health check and OBD-II electronic diagnostic trouble code scan.",
+    "workToBeDone": "1. Measure front brake pad and rear brake shoe friction lining thickness against safety tolerances.\n2. Inspect front brake disc rotors for grooves and lateral runout; precision skim on lathe if required; bleed brake fluid with fresh DOT-4.",
     "parts": [
       {
-        "desc": "General Maintenance Service Filter Kit",
+        "desc": "Front Ceramic Brake Pads (OEM)",
         "qty": 1,
-        "rate": 4500,
-        "amount": 4500
+        "rate": 6500,
+        "amount": 6500
+      },
+      {
+        "desc": "Brake Rotor Disc Precision Skimming / Lathe Resurfacing (Pair)",
+        "qty": 1,
+        "rate": 2500,
+        "amount": 2500
+      },
+      {
+        "desc": "DOT-4 Hydraulic Brake Fluid (500ml)",
+        "qty": 2,
+        "rate": 1200,
+        "amount": 2400
       }
     ],
-    "labour": 4000,
+    "labour": 5500,
     "otherCharges": 0,
     "discount": 0,
     "advance": 0,
-    "subTotal": 8500,
-    "netPayable": 8500,
-    "balance": 8500,
+    "subTotal": 16900,
+    "netPayable": 16900,
+    "balance": 16900,
     "serviceAdvisor": "Service Incharge",
     "damageMarkers": [
       {
@@ -56,15 +152,15 @@
         "y": 0.5921738334324049
       }
     ],
-    "paymentCleared": true,
+    "paymentCleared": false,
     "closedAt": "2026-11-15T11:54:25.647Z"
   },
   {
     "id": "ASH-829104",
     "createdAt": "2026-11-15T09:15:00.000Z",
     "deliveryDue": "2026-11-15T17:30:00.000Z",
-    "status": "Paid & Delivered",
-    "currentBay": "Delivered (Closed)",
+    "status": "In Progress",
+    "currentBay": "Bay 5",
     "customer": {
       "name": "Hamza Tariq",
       "phone": "0321-4455667",
@@ -120,15 +216,15 @@
     "balance": 17500,
     "serviceAdvisor": "Service Incharge",
     "damageMarkers": [],
-    "paymentCleared": true,
+    "paymentCleared": false,
     "closedAt": "2026-11-15T11:54:28.812Z"
   },
   {
     "id": "ASH-642109",
     "createdAt": "2026-11-15T10:30:00.000Z",
     "deliveryDue": "2026-11-15T18:00:00.000Z",
-    "status": "Paid & Delivered",
-    "currentBay": "Delivered (Closed)",
+    "status": "In Progress",
+    "currentBay": "Bay 3",
     "customer": {
       "name": "Usman Malik",
       "phone": "0300-8877665",
@@ -176,15 +272,15 @@
     "balance": 13700,
     "serviceAdvisor": "Service Incharge",
     "damageMarkers": [],
-    "paymentCleared": true,
+    "paymentCleared": false,
     "closedAt": "2026-11-15T11:54:30.207Z"
   },
   {
     "id": "ASH-570539",
     "createdAt": "2026-11-15T11:04:15.778Z",
     "deliveryDue": "2026-11-15T16:04:15.778Z",
-    "status": "Paid & Delivered",
-    "currentBay": "Delivered (Closed)",
+    "status": "In Progress",
+    "currentBay": "Bay 1",
     "customer": {
       "name": "Ali",
       "phone": "03364331888",
@@ -239,7 +335,7 @@
     "balance": 0,
     "serviceAdvisor": "Service Incharge",
     "damageMarkers": [],
-    "paymentCleared": true,
+    "paymentCleared": false,
     "closedAt": "2026-11-15T11:45:10.777Z"
   }
 ]

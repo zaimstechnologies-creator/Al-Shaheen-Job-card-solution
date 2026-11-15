@@ -29,6 +29,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Active background runtime sync (checks every 1.2s for seamless multi-device updates without refresh)
+    setInterval(() => {
+        const activeView = document.querySelector('.nav-item.active')?.dataset.view || 'dashboardView';
+        if (activeView !== 'editorView') {
+            refreshDashboard();
+        }
+    }, 1200);
+
     handleInitialNavigation();
 });
 

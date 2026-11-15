@@ -253,6 +253,13 @@
                 s4.className = 'step-node';
             }
         }
+
+        // Live real-time auto-refresh on customer's phone as soon as vehicle moves
+        window.addEventListener('hub-data-updated', () => {
+            if (document.getElementById('trackResult')?.style.display === 'block') {
+                executeTrack();
+            }
+        });
     </script>
 </body>
 </html>

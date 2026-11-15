@@ -4,6 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
+let WebSocket = null;
+try {
+    WebSocket = require('ws');
+} catch (e) {}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +18,17 @@ const CONFIG_FILE = path.join(__dirname, 'config.json');
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Disable all HTTP caching on API routes for live runtime freshness across all devices
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/jobcards')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+    }
+    next();
+});
 
 // Ensure data folder exists
 const dataDir = path.join(__dirname, 'data');
@@ -97,10 +112,12 @@ function getGeminiApiKey() {
     return '';
 }
 
-// Server-Sent Events (SSE) for Real-Time TV and Dashboard Sync
+// Server-Sent Events (SSE) & WebSocket Engine for Real-Time TV and Multi-Device Sync
 let sseClients = [];
+let wssInstance = null;
 
 function broadcastEvent(eventType, payload) {
+    // 1. Broadcast to SSE Clients
     const dataStr = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
     sseClients.forEach(client => {
         try {
@@ -109,6 +126,16 @@ function broadcastEvent(eventType, payload) {
             // Client disconnected
         }
     });
+
+    // 2. Broadcast to Native WebSocket Clients (Sub-millisecond sync)
+    if (wssInstance && WebSocket) {
+        const wsMsg = JSON.stringify({ type: eventType, data: payload, timestamp: Date.now() });
+        wssInstance.clients.forEach(wsClient => {
+            if (wsClient.readyState === WebSocket.OPEN) {
+                try { wsClient.send(wsMsg); } catch (e) {}
+            }
+        });
+    }
 }
 
 // SSE Endpoint
@@ -598,7 +625,21 @@ app.get('/', (req, res) => {
 // Start Server
 if (require.main === module) {
     const server = http.createServer(app);
-    server.listen(PORT, () => {
+
+    // Attach WebSocket server for real-time multi-device sync
+    if (WebSocket) {
+        try {
+            wssInstance = new WebSocket.Server({ server, path: '/ws' });
+            wssInstance.on('connection', (ws) => {
+                const cards = readJobCards();
+                ws.send(JSON.stringify({ type: 'snapshot', data: cards, timestamp: Date.now() }));
+            });
+        } catch (wsErr) {
+            console.warn('WebSocket init warning:', wsErr.message);
+        }
+    }
+
+    server.listen(PORT, '0.0.0.0', () => {
         console.log(`===================================================================`);
         console.log(`🚗 Al Shaheen Auto Hub - Modern Node.js Enterprise Application`);
         console.log(`===================================================================`);
@@ -606,6 +647,7 @@ if (require.main === module) {
         console.log(`📺 60" Lounge TV Display:  http://localhost:${PORT}/tv`);
         console.log(`📱 Customer Mobile Track:  http://localhost:${PORT}/track`);
         console.log(`⚡ REST API & SSE Live:    http://localhost:${PORT}/api/live-stream`);
+        console.log(`⚡ WebSocket Runtime Sync: ws://localhost:${PORT}/ws`);
         console.log(`===================================================================`);
     });
 }

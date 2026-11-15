@@ -57,8 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (e) {}
 
-    // High-frequency auto-refresh queue every 3 seconds for instant updates on all devices
-    setInterval(loadTvQueue, 3000);
+    // Sub-second auto-refresh queue every 1 second for live runtime sync on all devices
+    setInterval(loadTvQueue, 1000);
 });
 
 // Live Clock
@@ -140,6 +140,7 @@ function toggleTvFullscreen() {
 }
 
 // Load and Render Queue
+let lastTvHash = '';
 async function loadTvQueue() {
     if (window.HubAPI) {
         tvJobCards = await window.HubAPI.getAllJobCards();
@@ -152,7 +153,11 @@ async function loadTvQueue() {
         }
     }
 
-    renderQueueList(tvJobCards);
+    const currentHash = tvJobCards.map(c => `${c.id}|${c.currentBay}|${c.status}|${c.paymentCleared}`).join(';;');
+    if (currentHash !== lastTvHash) {
+        lastTvHash = currentHash;
+        renderQueueList(tvJobCards);
+    }
 }
 
 function renderQueueList(cards) {
