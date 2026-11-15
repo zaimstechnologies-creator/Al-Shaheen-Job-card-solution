@@ -458,6 +458,10 @@
                                 </div>
                                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                                     <div class="form-group">
+                                        <label>Service Advisor / Incharge</label>
+                                        <input type="text" id="cardAdvisor" class="form-control" placeholder="e.g. Service Incharge" value="Service Incharge">
+                                    </div>
+                                    <div class="form-group">
                                         <label>Assigned Bay</label>
                                         <select id="cardBaySelect" class="form-control" style="font-weight:700;">
                                             <option value="Bay 1">Bay 1: Diagnostics</option>
@@ -468,15 +472,15 @@
                                             <option value="Bay 6">Bay 6: Ready for Delivery</option>
                                         </select>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Workflow Status</label>
-                                        <select id="cardStatusSelect" class="form-control" style="font-weight:700;">
-                                            <option value="In Progress">⚙️ In Progress (Active in Bay &amp; TV)</option>
-                                            <option value="Ready">🔔 Ready for Collection (Alerts TV &amp; Chime)</option>
-                                            <option value="Paid &amp; Delivered">💳 Paid &amp; Delivered (Closed - Off TV)</option>
-                                            <option value="Cancelled">❌ Cancelled / Void</option>
-                                        </select>
-                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Workflow Status</label>
+                                    <select id="cardStatusSelect" class="form-control" style="font-weight:700;">
+                                        <option value="In Progress">⚙️ In Progress (Active in Bay &amp; TV)</option>
+                                        <option value="Ready">🔔 Ready for Collection (Alerts TV &amp; Chime)</option>
+                                        <option value="Paid &amp; Delivered">💳 Paid &amp; Delivered (Closed - Off TV)</option>
+                                        <option value="Cancelled">❌ Cancelled / Void</option>
+                                    </select>
                                 </div>
 
                                 <!-- Fuel Slider -->

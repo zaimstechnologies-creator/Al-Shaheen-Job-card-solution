@@ -206,7 +206,7 @@ async function saveActiveJobCard() {
     } else {
         const raw = localStorage.getItem('al_shaheen_job_cards_v3');
         const cards = raw ? JSON.parse(raw) : [];
-        const idx = cards.findIndex(c => c.id === activeCard.id);
+        const idx = cards.findIndex(c => (c.id || '').toLowerCase() === activeCard.id.toLowerCase());
         if (idx >= 0) cards[idx] = activeCard;
         else cards.unshift(activeCard);
         localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(cards));
@@ -864,6 +864,7 @@ function calcAllTotals() {
     const netPayable = Math.max(0, subTotal - discount);
     const balance = Math.max(0, netPayable - advance);
 
+    activeCard.partsTotal = partsSum;
     activeCard.labour = labour;
     activeCard.otherCharges = other;
     activeCard.discount = discount;
@@ -897,7 +898,7 @@ async function deleteActiveJobCard() {
     if (raw) {
         try {
             let cards = JSON.parse(raw);
-            cards = cards.filter(c => c.id !== cardId);
+            cards = cards.filter(c => (c.id || '').toLowerCase() !== cardId.toLowerCase());
             localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(cards));
         } catch (e) {}
     }
@@ -930,7 +931,7 @@ async function closeActiveJobCardPayment() {
     if (raw) {
         try {
             let cards = JSON.parse(raw);
-            const idx = cards.findIndex(c => c.id === cardId);
+            const idx = cards.findIndex(c => (c.id || '').toLowerCase() === cardId.toLowerCase());
             if (idx >= 0) {
                 cards[idx] = activeCard;
                 localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(cards));

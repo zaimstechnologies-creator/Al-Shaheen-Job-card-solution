@@ -677,23 +677,41 @@ async function updateCardBay(cardId, bay) {
     await refreshDashboard();
 }
 
-function openCardInEditor(cardId) {
-    const card = allCards.find(c => c.id === cardId);
+async function openCardInEditor(cardId) {
+    if (!cardId) return;
+    const cleanId = String(cardId).trim().toLowerCase();
+    let card = allCards.find(c => (c.id || '').toLowerCase() === cleanId);
+    if (!card && window.HubAPI) {
+        allCards = await window.HubAPI.getAllJobCards();
+        card = allCards.find(c => (c.id || '').toLowerCase() === cleanId);
+    }
     if (card && window.loadCardIntoEditor) {
         window.loadCardIntoEditor(card);
         showView('editorView');
     }
 }
 
-function printJobCardNativeById(cardId) {
-    const card = allCards.find(c => c.id === cardId);
+async function printJobCardNativeById(cardId) {
+    if (!cardId) return;
+    const cleanId = String(cardId).trim().toLowerCase();
+    let card = allCards.find(c => (c.id || '').toLowerCase() === cleanId);
+    if (!card && window.HubAPI) {
+        allCards = await window.HubAPI.getAllJobCards();
+        card = allCards.find(c => (c.id || '').toLowerCase() === cleanId);
+    }
     if (card && window.printJobCardNative) {
         window.printJobCardNative(card);
     }
 }
 
-function downloadJobCardPdfById(cardId) {
-    const card = allCards.find(c => c.id === cardId);
+async function downloadJobCardPdfById(cardId) {
+    if (!cardId) return;
+    const cleanId = String(cardId).trim().toLowerCase();
+    let card = allCards.find(c => (c.id || '').toLowerCase() === cleanId);
+    if (!card && window.HubAPI) {
+        allCards = await window.HubAPI.getAllJobCards();
+        card = allCards.find(c => (c.id || '').toLowerCase() === cleanId);
+    }
     if (card && window.downloadJobCardPdf) {
         window.downloadJobCardPdf(card);
     }
