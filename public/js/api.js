@@ -1,11 +1,10 @@
 // ==========================================================================
-// AL SHAHEEN AUTO HUB - ULTRA-FAST REAL-TIME MULTI-DEVICE SYNC ENGINE
-// Native WebSockets (Sub-ms) + SSE + 1-Sec Delta Poller + BroadcastChannel
+// AL SHAHEEN AUTO HUB - CENTRALIZED DATABASE & REAL-TIME MULTI-DEVICE SYNC
+// Single Source of Truth on Central Server | Zero Echo Loops | Instant Sync
 // ==========================================================================
 
 const API_BASE = '/api';
 const LOCAL_STORAGE_KEY = 'al_shaheen_job_cards_v3';
-const SYNC_CHANNEL_NAME = 'al_shaheen_hub_sync_v2';
 
 function getStaffAuthHeaders(extraHeaders = {}) {
     const token = (typeof window !== 'undefined') ?
@@ -17,64 +16,18 @@ function getStaffAuthHeaders(extraHeaders = {}) {
     return headers;
 }
 
-let syncChannel = null;
-try {
-    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-        syncChannel = new BroadcastChannel(SYNC_CHANNEL_NAME);
-    }
-} catch (e) {
-    console.warn('BroadcastChannel not supported', e);
-}
-
-function broadcastSync(type, data) {
-    // 1. Post across all open tabs/windows instantly (0ms)
-    if (syncChannel) {
-        try {
-            syncChannel.postMessage({ type, data, timestamp: Date.now() });
-        } catch (e) {}
-    }
-    // 2. Dispatch in current window
-    if (typeof window !== 'undefined') {
-        if (type === 'update') {
-            window.dispatchEvent(new CustomEvent('hub-data-updated', { detail: data }));
-        } else if (type === 'vehicle_ready') {
-            window.dispatchEvent(new CustomEvent('hub-vehicle-ready', { detail: data }));
-        } else if (type === 'voice_announce') {
-            window.dispatchEvent(new CustomEvent('hub-voice-announce', { detail: data }));
-        }
-    }
-}
-
 class JobCardAPI {
     constructor() {
         this.isOnline = true;
         this.ws = null;
         this.sse = null;
         this.lastKnownHash = '';
-        this.initChannelListener();
         this.initWebSocket();
         this.initSSE();
         this.startLiveHeartbeat();
     }
 
-    initChannelListener() {
-        if (!syncChannel) return;
-        syncChannel.onmessage = (event) => {
-            const { type, data } = event.data || {};
-            if (!type) return;
-            if (typeof window !== 'undefined') {
-                if (type === 'update') {
-                    window.dispatchEvent(new CustomEvent('hub-data-updated', { detail: data }));
-                } else if (type === 'vehicle_ready') {
-                    window.dispatchEvent(new CustomEvent('hub-vehicle-ready', { detail: data }));
-                } else if (type === 'voice_announce') {
-                    window.dispatchEvent(new CustomEvent('hub-voice-announce', { detail: data }));
-                }
-            }
-        };
-    }
-
-    // 1. Native WebSocket Connection (<5ms Sub-Millisecond Multi-Device Sync)
+    // 1. Native WebSocket Connection (Direct Server Authority Push)
     initWebSocket() {
         if (typeof window === 'undefined' || !('WebSocket' in window)) return;
         try {
@@ -85,7 +38,7 @@ class JobCardAPI {
             this.ws.onopen = () => {
                 const token = (typeof window !== 'undefined') ?
                     (localStorage.getItem('al_shaheen_staff_token') || sessionStorage.getItem('al_shaheen_staff_token') || '') : '';
-                if (token && this.ws.readyState === WebSocket.OPEN) {
+                if (token && this.ws && this.ws.readyState === WebSocket.OPEN) {
                     try {
                         this.ws.send(JSON.stringify({ type: 'auth', token }));
                     } catch (e) {}
@@ -97,20 +50,20 @@ class JobCardAPI {
                     const msg = JSON.parse(evt.data);
                     if (msg.type === 'snapshot' && Array.isArray(msg.data)) {
                         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(msg.data));
-                        broadcastSync('update', { all: msg.data });
+                        window.dispatchEvent(new CustomEvent('hub-data-updated', { detail: { all: msg.data } }));
                     } else if (msg.type === 'update') {
-                        broadcastSync('update', msg.data);
+                        window.dispatchEvent(new CustomEvent('hub-data-updated', { detail: msg.data }));
                     } else if (msg.type === 'vehicle_ready') {
-                        broadcastSync('vehicle_ready', msg.data);
+                        window.dispatchEvent(new CustomEvent('hub-vehicle-ready', { detail: msg.data }));
                     } else if (msg.type === 'voice_announce') {
-                        broadcastSync('voice_announce', msg.data);
+                        window.dispatchEvent(new CustomEvent('hub-voice-announce', { detail: msg.data }));
                     }
                 } catch (e) {}
             };
 
             this.ws.onclose = () => {
-                // Auto-reconnect WebSocket after 2.5 seconds
-                setTimeout(() => this.initWebSocket(), 2500);
+                // Reconnect WebSocket after 3 seconds
+                setTimeout(() => this.initWebSocket(), 3000);
             };
 
             this.ws.onerror = () => {
@@ -128,36 +81,36 @@ class JobCardAPI {
             this.sse.addEventListener('update', (e) => {
                 try {
                     const data = JSON.parse(e.data);
-                    broadcastSync('update', data);
+                    window.dispatchEvent(new CustomEvent('hub-data-updated', { detail: data }));
                 } catch (err) {}
             });
 
             this.sse.addEventListener('vehicle_ready', (e) => {
                 try {
                     const data = JSON.parse(e.data);
-                    broadcastSync('vehicle_ready', data);
+                    window.dispatchEvent(new CustomEvent('hub-vehicle-ready', { detail: data }));
                 } catch (err) {}
             });
 
             this.sse.addEventListener('voice_announce', (e) => {
                 try {
                     const data = JSON.parse(e.data);
-                    broadcastSync('voice_announce', data);
+                    window.dispatchEvent(new CustomEvent('hub-voice-announce', { detail: data }));
                 } catch (err) {}
             });
 
             this.sse.onerror = () => {
-                // Managed automatically by browser EventSource retry
+                // Browser handles reconnect
             };
         } catch (e) {}
     }
 
-    // 3. High-Speed 1-Second Delta Heartbeat Poller (Guarantees Real-Time Across All Devices on Vercel)
+    // 3. Fallback Heartbeat Poller (Only active when tab is visible, relaxed to 4 seconds)
     startLiveHeartbeat() {
         if (typeof window === 'undefined') return;
         setInterval(async () => {
+            if (typeof document !== 'undefined' && document.hidden) return;
             const token = localStorage.getItem('al_shaheen_staff_token') || sessionStorage.getItem('al_shaheen_staff_token') || '';
-            // Only poll protected jobcards endpoint if user is logged in
             if (!token) return;
 
             try {
@@ -174,7 +127,6 @@ class JobCardAPI {
                 if (res.ok) {
                     const json = await res.json();
                     if (json.success && Array.isArray(json.data)) {
-                        // Calculate fingerprint of dataset
                         const currentHash = json.data.map(c => `${c.id}|${c.currentBay}|${c.status}|${c.paymentCleared}|${c.netPayable}`).join(';;');
                         if (currentHash !== this.lastKnownHash) {
                             this.lastKnownHash = currentHash;
@@ -184,10 +136,10 @@ class JobCardAPI {
                     }
                 }
             } catch (e) {}
-        }, 1000);
+        }, 4000);
     }
 
-    // Fetch all job cards (Protected with staff auth)
+    // Fetch all job cards (Protected with staff auth - Direct Server Authority)
     async getAllJobCards() {
         try {
             const res = await fetch(`${API_BASE}/jobcards?_t=${Date.now()}`, {
@@ -209,7 +161,7 @@ class JobCardAPI {
                 }
             }
         } catch (err) {
-            console.warn('API fetch failed, falling back to localStorage:', err.message);
+            console.warn('API fetch failed, reading local cache:', err.message);
         }
 
         return this.getLocalJobCards();
@@ -246,20 +198,9 @@ class JobCardAPI {
         }
     }
 
-    // Save or update a job card
+    // Save or update a job card directly in Centralized Server Database
     async saveJobCard(card) {
         let savedCard = card;
-
-        // Persist locally immediately (0ms)
-        this.updateLocalCard(savedCard);
-        broadcastSync('update', { card: savedCard });
-
-        // Push via WebSocket if open
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            try {
-                this.ws.send(JSON.stringify({ type: 'update', data: { card: savedCard } }));
-            } catch (e) {}
-        }
 
         try {
             const res = await fetch(`${API_BASE}/jobcards`, {
@@ -273,36 +214,42 @@ class JobCardAPI {
                 const json = await res.json();
                 if (json.success && json.data) {
                     savedCard = json.data;
-                    this.updateLocalCard(savedCard);
                 }
             }
         } catch (err) {
-            console.warn('API save failed, using local mirror:', err.message);
+            console.warn('API save offline fallback:', err.message);
         }
 
-        if (savedCard.status === 'Ready' || savedCard.currentBay === 'Bay 6') {
-            const payload = {
-                id: savedCard.id,
-                plateNo: savedCard.vehicle?.plateNo || 'Vehicle',
-                makeModel: savedCard.vehicle?.makeModel || '',
-                customer: savedCard.customer?.name || '',
-                bay: savedCard.currentBay || 'Bay 6'
-            };
-            broadcastSync('vehicle_ready', payload);
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                try {
-                    this.ws.send(JSON.stringify({ type: 'vehicle_ready', data: payload }));
-                } catch (e) {}
-            }
-        }
+        this.updateLocalCard(savedCard);
         return savedCard;
     }
 
-    // Update vehicle bay
+    // Update vehicle bay directly in Centralized Server Database (One Action at a Time)
     async updateBay(id, bay, status) {
         let updatedCard = null;
 
-        // Update locally immediately
+        try {
+            const res = await fetch(`${API_BASE}/jobcards/${encodeURIComponent(id)}/bay`, {
+                method: 'PUT',
+                headers: getStaffAuthHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ bay, status })
+            });
+
+            if (res.status === 401) {
+                window.dispatchEvent(new CustomEvent('hub-auth-required'));
+            } else if (res.ok) {
+                const json = await res.json();
+                if (json.success && json.data) {
+                    updatedCard = json.data;
+                    this.updateLocalCard(updatedCard);
+                    return updatedCard;
+                }
+            }
+        } catch (err) {
+            console.warn('API bay update failed:', err.message);
+        }
+
+        // Offline fallback
         const cards = this.getLocalJobCards();
         const found = cards.find(c => c.id.toLowerCase() === id.toLowerCase());
         if (found) {
@@ -314,66 +261,12 @@ class JobCardAPI {
             }
             updatedCard = found;
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cards));
-            broadcastSync('update', { card: updatedCard });
-        }
-
-        // Push via WebSocket
-        if (this.ws && this.ws.readyState === WebSocket.OPEN && updatedCard) {
-            try {
-                this.ws.send(JSON.stringify({ type: 'update', data: { card: updatedCard } }));
-            } catch (e) {}
-        }
-
-        try {
-            const res = await fetch(`${API_BASE}/jobcards/${encodeURIComponent(id)}/bay`, {
-                method: 'PUT',
-                headers: getStaffAuthHeaders({ 'Content-Type': 'application/json' }),
-                body: JSON.stringify({ bay, status })
-            });
-            if (res.status === 401) {
-                window.dispatchEvent(new CustomEvent('hub-auth-required'));
-            } else if (res.ok) {
-                const json = await res.json();
-                if (json.success && json.data) {
-                    updatedCard = json.data;
-                    this.updateLocalCard(updatedCard);
-                }
-            }
-        } catch (err) {
-            console.warn('API bay update failed:', err.message);
-        }
-
-        if (updatedCard && (updatedCard.status === 'Ready' || updatedCard.currentBay === 'Bay 6')) {
-            const payload = {
-                id: updatedCard.id,
-                plateNo: updatedCard.vehicle?.plateNo || 'Vehicle',
-                makeModel: updatedCard.vehicle?.makeModel || '',
-                customer: updatedCard.customer?.name || '',
-                bay: updatedCard.currentBay || 'Bay 6'
-            };
-            broadcastSync('vehicle_ready', payload);
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                try {
-                    this.ws.send(JSON.stringify({ type: 'vehicle_ready', data: payload }));
-                } catch (e) {}
-            }
         }
         return updatedCard;
     }
 
-    // Delete job card
+    // Delete job card directly in Centralized Server Database
     async deleteJobCard(id) {
-        let cards = this.getLocalJobCards().filter(c => c.id.toLowerCase() !== id.toLowerCase());
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cards));
-        broadcastSync('update', { id, deleted: true });
-
-        // Push via WebSocket
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            try {
-                this.ws.send(JSON.stringify({ type: 'update', data: { id, deleted: true } }));
-            } catch (e) {}
-        }
-
         try {
             const res = await fetch(`${API_BASE}/jobcards/${encodeURIComponent(id)}`, {
                 method: 'DELETE',
@@ -386,10 +279,12 @@ class JobCardAPI {
             console.warn('API delete failed:', err.message);
         }
 
+        const cards = this.getLocalJobCards().filter(c => c.id.toLowerCase() !== id.toLowerCase());
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cards));
         return true;
     }
 
-    // Local Storage Helpers
+    // Local Storage Passive Cache Helpers
     getLocalJobCards() {
         try {
             const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -413,4 +308,3 @@ class JobCardAPI {
 
 const api = new JobCardAPI();
 window.HubAPI = api;
-window.broadcastSync = broadcastSync;

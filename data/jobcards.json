@@ -3,8 +3,8 @@
     "id": "ASH-969448",
     "createdAt": "2026-11-15T12:27:04.207Z",
     "deliveryDue": "2026-11-15T17:27:04.207Z",
-    "status": "Ready",
-    "currentBay": "Bay 6",
+    "status": "In Progress",
+    "currentBay": "Bay 1",
     "customer": {
       "name": "Haider",
       "phone": "03364315848",

@@ -14,6 +14,9 @@ function getStaffToken() {
     return localStorage.getItem(STAFF_TOKEN_KEY) || sessionStorage.getItem(STAFF_TOKEN_KEY) || '';
 }
 
+let isActionPending = false;
+let refreshDebounceTimer = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initial token existence check
     if (checkStaffAuth()) {
@@ -24,33 +27,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         showStaffLogin();
     }
 
-    await refreshDashboard();
+    await refreshDashboard(true);
 
-    // Listen to real-time events
+    // Real-time event listener (Centralized backend push - debounced to execute one calm render)
     window.addEventListener('hub-data-updated', () => {
-        if (checkStaffAuth()) {
+        if (!checkStaffAuth() || isActionPending) return;
+        if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+        refreshDebounceTimer = setTimeout(() => {
             refreshDashboard();
-        }
+        }, 300);
     });
 
     window.addEventListener('hub-auth-required', () => {
         staffLogout();
     });
-
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'al_shaheen_job_cards_v3' && checkStaffAuth()) {
-            refreshDashboard();
-        }
-    });
-
-    // Active background runtime sync (only runs when authenticated)
-    setInterval(() => {
-        if (!checkStaffAuth()) return;
-        const activeView = document.querySelector('.nav-item.active')?.dataset.view || 'dashboardView';
-        if (activeView !== 'editorView') {
-            refreshDashboard();
-        }
-    }, 1200);
 
     handleInitialNavigation();
 });
@@ -445,16 +435,33 @@ function renderKanban() {
     }).join('');
 }
 
-async function quickAdvanceBay(cardId, currentBay) {
-    const baySequence = ['Bay 1', 'Bay 2', 'Bay 3', 'Bay 4', 'Bay 5', 'Bay 6'];
-    const idx = baySequence.indexOf(currentBay);
-    const nextBay = idx < baySequence.length - 1 ? baySequence[idx + 1] : 'Bay 6';
-    const nextStatus = nextBay === 'Bay 6' ? 'Ready' : 'In Progress';
-
-    if (window.HubAPI) {
-        await window.HubAPI.updateBay(cardId, nextBay, nextStatus);
+async function quickAdvanceBay(cardId, currentBay, btnEl) {
+    if (isActionPending) return;
+    isActionPending = true;
+    if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.opacity = '0.5';
     }
-    await refreshDashboard();
+
+    try {
+        const baySequence = ['Bay 1', 'Bay 2', 'Bay 3', 'Bay 4', 'Bay 5', 'Bay 6'];
+        const idx = baySequence.indexOf(currentBay);
+        const nextBay = idx < baySequence.length - 1 ? baySequence[idx + 1] : 'Bay 6';
+        const nextStatus = nextBay === 'Bay 6' ? 'Ready' : 'In Progress';
+
+        if (window.HubAPI) {
+            await window.HubAPI.updateBay(cardId, nextBay, nextStatus);
+        }
+        await refreshDashboard(true);
+    } catch (e) {
+        console.error('Advance bay error:', e);
+    } finally {
+        isActionPending = false;
+        if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.style.opacity = '1';
+        }
+    }
 }
 
 // ==========================================================================
@@ -569,7 +576,7 @@ function renderTable() {
                     ${isClosed ? `
                         <span style="font-size:11.5px; font-weight:700; color:#15803d;">Delivered (Accounts Settled)</span>
                     ` : `
-                        <select onchange="updateCardBay('${c.id}', this.value)" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; font-weight:700; background:#f8fafc;">
+                        <select onchange="updateCardBay('${c.id}', this.value, this)" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; font-weight:700; background:#f8fafc;">
                             <option value="Bay 1" ${c.currentBay === 'Bay 1' ? 'selected' : ''}>Bay 1: Diagnostics</option>
                             <option value="Bay 2" ${c.currentBay === 'Bay 2' ? 'selected' : ''}>Bay 2: Electrical & AC</option>
                             <option value="Bay 3" ${c.currentBay === 'Bay 3' ? 'selected' : ''}>Bay 3: Suspension & Brakes</option>
@@ -616,65 +623,103 @@ function renderTable() {
 }
 
 async function closeJobCardPayment(cardId) {
+    if (isActionPending) return;
     const card = allCards.find(c => c.id === cardId);
     if (!card) return;
     const plate = card.vehicle?.plateNo || cardId;
     const conf = confirm(`Mark Job Card ${cardId} (${plate}) as PAID & DELIVERED?\n\nThis will clear payment and remove the vehicle from the Waiting Lounge TV Screen.`);
     if (!conf) return;
 
-    card.status = 'Paid & Delivered';
-    card.currentBay = 'Delivered (Closed)';
-    card.paymentCleared = true;
-    card.closedAt = new Date().toISOString();
+    isActionPending = true;
+    try {
+        card.status = 'Paid & Delivered';
+        card.currentBay = 'Delivered (Closed)';
+        card.paymentCleared = true;
+        card.closedAt = new Date().toISOString();
 
-    localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(allCards));
-
-    if (window.HubAPI) {
-        await window.HubAPI.saveJobCard(card);
-        await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
+        if (window.HubAPI) {
+            await window.HubAPI.saveJobCard(card);
+            await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
+        }
+        await refreshDashboard(true);
+        if (window.showToast) window.showToast(`Job Card ${cardId} closed & cleared. Removed from Lounge TV!`, 'success');
+    } catch (e) {
+        console.error('Close card error:', e);
+    } finally {
+        isActionPending = false;
     }
-    await refreshDashboard();
-    if (window.showToast) window.showToast(`Job Card ${cardId} closed & cleared. Removed from Lounge TV!`, 'success');
 }
 
 async function reopenJobCard(cardId) {
+    if (isActionPending) return;
     const card = allCards.find(c => c.id === cardId);
     if (!card) return;
-    card.status = 'In Progress';
-    card.currentBay = 'Bay 1';
-    card.paymentCleared = false;
-    delete card.closedAt;
+    isActionPending = true;
+    try {
+        card.status = 'In Progress';
+        card.currentBay = 'Bay 1';
+        card.paymentCleared = false;
+        delete card.closedAt;
 
-    if (window.HubAPI) {
-        await window.HubAPI.saveJobCard(card);
-        await window.HubAPI.updateBay(cardId, 'Bay 1', 'In Progress');
+        if (window.HubAPI) {
+            await window.HubAPI.saveJobCard(card);
+            await window.HubAPI.updateBay(cardId, 'Bay 1', 'In Progress');
+        }
+        await refreshDashboard(true);
+        if (window.showToast) window.showToast(`Job Card ${cardId} reopened into Bay 1.`, 'info');
+    } catch (e) {
+        console.error('Reopen card error:', e);
+    } finally {
+        isActionPending = false;
     }
-    await refreshDashboard();
-    if (window.showToast) window.showToast(`Job Card ${cardId} reopened into Bay 1.`, 'info');
 }
 
 async function deleteJobCardById(cardId) {
+    if (isActionPending) return;
     const card = allCards.find(c => c.id === cardId);
     const plate = card?.vehicle?.plateNo || cardId;
     const conf = confirm(`Are you sure you want to DELETE Job Card ${cardId} (${plate})?\n\nChoose OK if the client cancelled or if this card was created by mistake. This will permanently remove the record.`);
     if (!conf) return;
 
-    allCards = allCards.filter(c => c.id.toLowerCase() !== cardId.toLowerCase());
-    localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(allCards));
-
-    if (window.HubAPI) {
-        await window.HubAPI.deleteJobCard(cardId);
+    isActionPending = true;
+    try {
+        allCards = allCards.filter(c => c.id.toLowerCase() !== cardId.toLowerCase());
+        if (window.HubAPI) {
+            await window.HubAPI.deleteJobCard(cardId);
+        }
+        await refreshDashboard(true);
+        if (window.showToast) window.showToast(`Job Card ${cardId} permanently deleted.`, 'info');
+    } catch (e) {
+        console.error('Delete card error:', e);
+    } finally {
+        isActionPending = false;
     }
-    await refreshDashboard();
-    if (window.showToast) window.showToast(`Job Card ${cardId} permanently deleted.`, 'info');
 }
 
-async function updateCardBay(cardId, bay) {
-    const status = bay === 'Bay 6' ? 'Ready' : 'In Progress';
-    if (window.HubAPI) {
-        await window.HubAPI.updateBay(cardId, bay, status);
+async function updateCardBay(cardId, bay, selectEl) {
+    if (isActionPending) return;
+    isActionPending = true;
+    if (selectEl) {
+        selectEl.disabled = true;
+        selectEl.style.opacity = '0.5';
     }
-    await refreshDashboard();
+
+    try {
+        const status = bay === 'Bay 6' ? 'Ready' : 'In Progress';
+        if (window.HubAPI) {
+            await window.HubAPI.updateBay(cardId, bay, status);
+        }
+        await refreshDashboard(true);
+        if (window.showToast) window.showToast(`Updated to ${bay}`, 'success');
+    } catch (err) {
+        console.error('Update bay error:', err);
+    } finally {
+        isActionPending = false;
+        if (selectEl) {
+            selectEl.disabled = false;
+            selectEl.style.opacity = '1';
+        }
+    }
 }
 
 async function openCardInEditor(cardId) {

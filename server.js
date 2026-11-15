@@ -50,33 +50,38 @@ try {
 }
 
 let inMemoryCards = null;
+let lastDbMtime = 0;
 
-// Helpers for Data Persistence
+// Helpers for Data Persistence (Authoritative Centralized Backend Database)
+function getDbFilePath() {
+    if (fs.existsSync(DATA_FILE)) return DATA_FILE;
+    const tmpFile = path.join('/tmp', 'jobcards.json');
+    if (fs.existsSync(tmpFile)) return tmpFile;
+    return DATA_FILE;
+}
+
 function readJobCards() {
+    const dbPath = getDbFilePath();
+    try {
+        if (fs.existsSync(dbPath)) {
+            const stat = fs.statSync(dbPath);
+            if (!inMemoryCards || stat.mtimeMs !== lastDbMtime) {
+                const raw = fs.readFileSync(dbPath, 'utf8');
+                inMemoryCards = JSON.parse(raw);
+                lastDbMtime = stat.mtimeMs;
+                return inMemoryCards;
+            }
+            return inMemoryCards;
+        }
+    } catch (e) {
+        console.warn('Error reading centralized database file:', e.message);
+    }
+
     if (inMemoryCards && Array.isArray(inMemoryCards) && inMemoryCards.length > 0) {
         return inMemoryCards;
     }
 
-    // 1. Try reading from /tmp on serverless environments
-    try {
-        const tmpFile = path.join('/tmp', 'jobcards.json');
-        if (fs.existsSync(tmpFile)) {
-            const raw = fs.readFileSync(tmpFile, 'utf8');
-            inMemoryCards = JSON.parse(raw);
-            return inMemoryCards;
-        }
-    } catch (e) {}
-
-    // 2. Try reading from local data file
-    try {
-        if (fs.existsSync(DATA_FILE)) {
-            const raw = fs.readFileSync(DATA_FILE, 'utf8');
-            inMemoryCards = JSON.parse(raw);
-            return inMemoryCards;
-        }
-    } catch (err) {}
-
-    // 3. Fallback to bundled seed cards
+    // Fallback to bundled seed cards
     inMemoryCards = JSON.parse(JSON.stringify(bundledSeedCards));
     return inMemoryCards;
 }
@@ -88,12 +93,14 @@ function writeJobCards(cards) {
     // 1. Attempt local file write
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(cards, null, 2), 'utf8');
+        try { lastDbMtime = fs.statSync(DATA_FILE).mtimeMs; } catch (e) {}
         written = true;
     } catch (err) {
         // 2. Serverless Lambda fallback: write to writable /tmp
         try {
             const tmpFile = path.join('/tmp', 'jobcards.json');
             fs.writeFileSync(tmpFile, JSON.stringify(cards, null, 2), 'utf8');
+            try { lastDbMtime = fs.statSync(tmpFile).mtimeMs; } catch (e) {}
             written = true;
         } catch (e2) {}
     }

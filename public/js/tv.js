@@ -1,6 +1,6 @@
 // ==========================================================================
 // AL SHAHEEN AUTO HUB - 60-INCH LOUNGE TV DISPLAY & VOICE ENGINE
-// Features: Video Audio Ducking During Announcements | Al Shaheen Playlist
+// Features: Sequential FIFO Voice Announcements | Video Audio Ducking | Calm Sync
 // ==========================================================================
 
 const AL_SHAHEEN_PLAYLIST_ID = 'PLfWI-z1AjtsA';
@@ -13,6 +13,11 @@ let audioUnlocked = false;
 let cachedVoices = [];
 let knownReadyCards = new Set();
 let isInitialTvLoad = true;
+
+// Sequential FIFO Announcement Queue (One Announcement at a Time)
+let announcementQueue = [];
+let isAnnouncing = false;
+let currentAnnouncingCard = null;
 
 // Preload SpeechSynthesis Voices
 function loadTvVoices() {
@@ -57,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', unlockTvAudio);
     document.addEventListener('touchstart', unlockTvAudio);
 
-    // Listen to real-time events from HubAPI
+    // Listen to real-time events from Centralized Server HubAPI
     window.addEventListener('hub-data-updated', () => {
         loadTvQueue();
     });
@@ -65,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hub-vehicle-ready', (e) => {
         const vehicle = e.detail;
         if (vehicle && vehicle.plateNo) {
-            triggerReadyAnnouncement(vehicle.plateNo, vehicle.makeModel, vehicle.customer);
+            queueReadyAnnouncement(vehicle);
             loadTvQueue();
         }
     });
@@ -75,31 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         speakCustomAnnouncement(d.message || 'Attention please: Vehicle is ready for collection.');
     });
 
-    // Cross-tab storage synchronization
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'al_shaheen_job_cards_v3') {
-            loadTvQueue();
-        }
-    });
-
-    // Cross-tab BroadcastChannel synchronization
-    try {
-        if ('BroadcastChannel' in window) {
-            const bc = new BroadcastChannel('al_shaheen_hub_sync_v2');
-            bc.onmessage = (evt) => {
-                const { type, data } = evt.data || {};
-                if (type === 'update') {
-                    loadTvQueue();
-                } else if (type === 'vehicle_ready' && data && data.plateNo) {
-                    triggerReadyAnnouncement(data.plateNo, data.makeModel, data.customer);
-                    loadTvQueue();
-                }
-            };
-        }
-    } catch (e) {}
-
-    // Active smooth queue poller every 2 seconds for live sync without hammering CPU
-    setInterval(loadTvQueue, 2000);
+    // Active calm queue poller every 3 seconds for central database sync
+    setInterval(loadTvQueue, 3000);
 });
 
 // Live Clock
@@ -181,7 +163,15 @@ function toggleTvFullscreen() {
     }
 }
 
-// Load and Render Queue
+function isClosedCard(c) {
+    if (!c) return false;
+    const s = (c.status || '').toLowerCase().trim();
+    const b = (c.currentBay || '').toLowerCase().trim();
+    return s === 'completed' || s === 'delivered' || s === 'closed' || s === 'cancelled' || 
+           s.includes('paid') || s.includes('closed') || b.includes('closed') || c.paymentCleared === true;
+}
+
+// Load and Render Queue (Centralized Database Single Source)
 let lastTvHash = '';
 async function loadTvQueue() {
     let newCards = [];
@@ -206,13 +196,19 @@ async function loadTvQueue() {
 
     tvJobCards = newCards;
 
-    // Detect newly ready vehicles to announce automatically over lounge speakers
-    const currentReadyList = tvJobCards.filter(c => c.status === 'Ready' || c.currentBay === 'Bay 6');
+    // Detect newly ready vehicles to announce sequentially over lounge speakers
+    const currentReadyList = tvJobCards.filter(c => !isClosedCard(c) && (c.status === 'Ready' || c.currentBay === 'Bay 6'));
+
     if (!isInitialTvLoad) {
         currentReadyList.forEach(car => {
             if (!knownReadyCards.has(car.id)) {
                 knownReadyCards.add(car.id);
-                triggerReadyAnnouncement(car.vehicle?.plateNo || 'Vehicle', car.vehicle?.makeModel || '', car.customer?.name || '');
+                queueReadyAnnouncement({
+                    id: car.id,
+                    plateNo: car.vehicle?.plateNo || 'Vehicle',
+                    makeModel: car.vehicle?.makeModel || '',
+                    customer: car.customer?.name || ''
+                });
             }
         });
     } else {
@@ -229,35 +225,20 @@ async function loadTvQueue() {
 
 function renderQueueList(cards) {
     const listEl = document.getElementById('tvQueueList');
-    const alertBanner = document.getElementById('tvAlertBanner');
-    const alertPlate = document.getElementById('tvAlertPlate');
     const inServiceCountEl = document.getElementById('tvInServiceCount');
     const readyCountEl = document.getElementById('tvReadyCount');
 
     if (!listEl) return;
 
-    // Filter cards for TV (Only show Active & Ready vehicles, exclude Closed, Paid, Delivered, Cancelled)
-    const activeCards = cards.filter(c => {
-        const s = (c.status || '').toLowerCase().trim();
-        const b = (c.currentBay || '').toLowerCase().trim();
-        const isClosed = s === 'completed' || s === 'delivered' || s === 'closed' || s === 'cancelled' || 
-                         s.includes('paid') || s.includes('closed') || b.includes('closed') || c.paymentCleared === true;
-        return !isClosed;
-    });
+    // Filter cards for TV (Only show Active & Ready vehicles, exclude Closed, Paid, Delivered)
+    const activeCards = cards.filter(c => !isClosedCard(c));
     const inServiceCars = activeCards.filter(c => c.status !== 'Ready' && c.currentBay !== 'Bay 6');
     const readyCars = activeCards.filter(c => c.status === 'Ready' || c.currentBay === 'Bay 6');
 
     if (inServiceCountEl) inServiceCountEl.textContent = `${inServiceCars.length} In Service`;
     if (readyCountEl) readyCountEl.textContent = `${readyCars.length} Ready`;
 
-    // Show ready alert banner if any car is ready
-    if (readyCars.length > 0) {
-        const latestReady = readyCars[0];
-        if (alertBanner) alertBanner.style.display = 'flex';
-        if (alertPlate) alertPlate.textContent = latestReady.vehicle?.plateNo || 'READY';
-    } else {
-        if (alertBanner) alertBanner.style.display = 'none';
-    }
+    updateAlertBanner();
 
     if (activeCards.length === 0) {
         listEl.innerHTML = `
@@ -311,6 +292,25 @@ function renderQueueList(cards) {
     }).join('');
 }
 
+function updateAlertBanner() {
+    const alertBanner = document.getElementById('tvAlertBanner');
+    const alertPlate = document.getElementById('tvAlertPlate');
+    if (!alertBanner || !alertPlate) return;
+
+    if (currentAnnouncingCard) {
+        alertBanner.style.display = 'flex';
+        alertPlate.textContent = currentAnnouncingCard.plateNo || 'READY';
+    } else {
+        const readyCars = tvJobCards.filter(c => !isClosedCard(c) && (c.status === 'Ready' || c.currentBay === 'Bay 6'));
+        if (readyCars.length > 0) {
+            alertBanner.style.display = 'flex';
+            alertPlate.textContent = readyCars[0].vehicle?.plateNo || 'READY';
+        } else {
+            alertBanner.style.display = 'none';
+        }
+    }
+}
+
 // Two-tone chime sound (Web Audio API)
 function playAirportChime() {
     try {
@@ -354,32 +354,72 @@ function playAirportChime() {
 }
 
 // ==========================================================================
-// AUDIO DUCKING VOICE ANNOUNCEMENT ENGINE
-// Smoothly lowers YouTube video volume during speech, then restores it
+// SEQUENTIAL FIFO AUDIO DUCKING VOICE ANNOUNCEMENT ENGINE
+// One announcement at a time | No overlapping voice | 2.5s cooldown
 // ==========================================================================
-function triggerReadyAnnouncement(plateNo, model, customer) {
+function queueReadyAnnouncement(vehicle) {
+    if (!vehicle || !vehicle.plateNo) return;
+
+    // Check if vehicle is already pending in the queue
+    const alreadyQueued = announcementQueue.some(item => 
+        (item.id && vehicle.id && item.id === vehicle.id) || item.plateNo === vehicle.plateNo
+    );
+
+    if (!alreadyQueued) {
+        announcementQueue.push(vehicle);
+        processAnnouncementQueue();
+    }
+}
+
+function processAnnouncementQueue() {
+    if (isAnnouncing) return;
+    if (announcementQueue.length === 0) {
+        currentAnnouncingCard = null;
+        updateAlertBanner();
+        return;
+    }
+
+    isAnnouncing = true;
+    const current = announcementQueue.shift();
+    currentAnnouncingCard = current;
+    updateAlertBanner();
+
+    playSingleAnnouncement(current, () => {
+        // Calm cooldown pause between announcements (2.5 seconds)
+        setTimeout(() => {
+            isAnnouncing = false;
+            currentAnnouncingCard = null;
+            updateAlertBanner();
+            // Process next vehicle in queue
+            processAnnouncementQueue();
+        }, 2500);
+    });
+}
+
+function playSingleAnnouncement(vehicle, onFinished) {
     unlockTvAudio();
 
-    // 1. Duck YouTube video volume down to 10% for crisp announcement clarity
+    // 1. Duck YouTube video volume down to 10% for crystal clear announcement
     setYtVolume(10);
 
-    // 2. Play hospital/airport chime
+    // 2. Play airport chime
     playAirportChime();
 
     setTimeout(() => {
         if (!('speechSynthesis' in window)) {
-            // Restore volume after 4 seconds if speech synthesis not available
-            setTimeout(() => setYtVolume(100), 4000);
+            setTimeout(() => {
+                setYtVolume(100);
+                if (onFinished) onFinished();
+            }, 3500);
             return;
         }
 
         try {
-            window.speechSynthesis.cancel();
             window.speechSynthesis.resume();
         } catch (e) {}
 
-        const cleanPlate = (plateNo || 'Vehicle').split('').join(' ');
-        const cleanModel = model ? `${model}` : '';
+        const cleanPlate = (vehicle.plateNo || 'Vehicle').split('').join(' ');
+        const cleanModel = vehicle.makeModel ? `${vehicle.makeModel}` : '';
         const speechText = `Attention please: Vehicle ${cleanPlate}, ${cleanModel}, is ready for collection. Please proceed to the Accounts Counter for key collection. Thank you!`;
 
         const utterance = new SpeechSynthesisUtterance(speechText);
@@ -394,16 +434,23 @@ function triggerReadyAnnouncement(plateNo, model, customer) {
             utterance.voice = engVoice;
         }
 
-        // Restore video volume back to 100% when announcement finishes
-        utterance.onend = () => {
+        let finished = false;
+        function finish() {
+            if (finished) return;
+            finished = true;
             setTimeout(() => {
                 setYtVolume(100);
             }, 800);
-        };
+            if (onFinished) onFinished();
+        }
 
-        utterance.onerror = () => {
-            setYtVolume(100);
-        };
+        utterance.onend = finish;
+        utterance.onerror = finish;
+
+        // Safety timeout in case browser speech synthesis hangs
+        setTimeout(() => {
+            if (!finished) finish();
+        }, 12000);
 
         window.speechSynthesis.speak(utterance);
     }, 750);
@@ -421,7 +468,6 @@ function speakCustomAnnouncement(text) {
         }
 
         try {
-            window.speechSynthesis.cancel();
             window.speechSynthesis.resume();
         } catch (e) {}
 
@@ -443,7 +489,11 @@ function speakCustomAnnouncement(text) {
 // Test Announcement
 function testVoiceAnnouncement() {
     unlockTvAudio();
-    triggerReadyAnnouncement('AQP 007', 'Mazda Flair', 'Valued Customer');
+    queueReadyAnnouncement({
+        plateNo: 'AQP 007',
+        makeModel: 'Mazda Flair',
+        customer: 'Valued Customer'
+    });
 }
 
 function escapeHtml(str) {
@@ -459,4 +509,3 @@ function escapeHtml(str) {
 window.toggleTvAudio = toggleTvAudio;
 window.toggleTvFullscreen = toggleTvFullscreen;
 window.testVoiceAnnouncement = testVoiceAnnouncement;
-window.verifyTvPin = verifyTvPin;
