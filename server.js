@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
+const crypto = require('crypto');
 let WebSocket = null;
 try {
     WebSocket = require('ws');
@@ -163,13 +164,210 @@ app.get(['/api/live-stream', '/live-stream'], (req, res) => {
     });
 });
 
-// REST API Endpoints (supports both /api/jobcards and /jobcards)
-app.get(['/api/jobcards', '/jobcards'], (req, res) => {
+// ==========================================================================
+// ENTERPRISE HMAC-SHA256 AUTHENTICATION & SECURITY ENGINE
+// Shields confidential client records (phones, addresses, financial billing)
+// ==========================================================================
+const AUTH_SECRET = process.env.AUTH_SECRET || 'AlShaheen_MasterSecretKey_2026_EnterpriseStaffAuth_Shield';
+
+function getAdminCredentials() {
+    let username = 'admin';
+    let password = 'Shaheen@2026';
+    try {
+        if (fs.existsSync(CONFIG_FILE)) {
+            const conf = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+            if (conf.adminUsername) username = conf.adminUsername;
+            if (conf.adminPassword) password = conf.adminPassword;
+        }
+    } catch (e) {}
+    return { username, password };
+}
+
+function generateSignedToken(username) {
+    const issuedAt = Date.now();
+    const expiresAt = issuedAt + (14 * 24 * 60 * 60 * 1000); // 14 days valid
+    const payload = `${username}:${issuedAt}:${expiresAt}`;
+    const hmac = crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
+    const token = Buffer.from(`${payload}:${hmac}`).toString('base64url');
+    return { token, expiresAt, username };
+}
+
+function verifySignedToken(token) {
+    if (!token || typeof token !== 'string') return null;
+    try {
+        const decoded = Buffer.from(token, 'base64url').toString('utf8');
+        const parts = decoded.split(':');
+        if (parts.length !== 4) return null;
+        const [username, issuedAt, expiresAt, receivedHmac] = parts;
+        if (Date.now() > parseInt(expiresAt, 10)) {
+            return null; // Expired
+        }
+        const expectedPayload = `${username}:${issuedAt}:${expiresAt}`;
+        const calculatedHmac = crypto.createHmac('sha256', AUTH_SECRET).update(expectedPayload).digest('hex');
+        const bufA = Buffer.from(receivedHmac, 'hex');
+        const bufB = Buffer.from(calculatedHmac, 'hex');
+        if (bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB)) {
+            return { username, expiresAt: parseInt(expiresAt, 10) };
+        }
+    } catch (e) {}
+    return null;
+}
+
+function requireStaffAuth(req, res, next) {
+    const authHeader = req.headers['authorization'] || req.headers['x-staff-token'] || '';
+    let token = '';
+    if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
+    } else {
+        token = authHeader.trim();
+    }
+
+    const session = verifySignedToken(token);
+    if (!session) {
+        return res.status(401).json({
+            success: false,
+            error: 'Unauthorized: Workshop staff authentication required to access client records.'
+        });
+    }
+    req.staffUser = session;
+    next();
+}
+
+// --------------------------------------------------------------------------
+// AUTHENTICATION & SECURITY ENDPOINTS
+// --------------------------------------------------------------------------
+
+// 1. Staff Sign In (Strict Credential Verification)
+app.post(['/api/auth/login', '/auth/login'], (req, res) => {
+    const { username, password } = req.body || {};
+    const creds = getAdminCredentials();
+
+    if (
+        username && password &&
+        username.trim().toLowerCase() === creds.username.toLowerCase() &&
+        password.trim() === creds.password
+    ) {
+        const tokenData = generateSignedToken(creds.username);
+        return res.json({
+            success: true,
+            token: tokenData.token,
+            expiresAt: tokenData.expiresAt,
+            user: creds.username,
+            role: 'admin'
+        });
+    }
+
+    return res.status(401).json({
+        success: false,
+        error: 'Invalid staff username or password. Access denied.'
+    });
+});
+
+// 2. Verify Session Validity
+app.get(['/api/auth/verify', '/auth/verify'], (req, res) => {
+    const authHeader = req.headers['authorization'] || req.headers['x-staff-token'] || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader.trim();
+    const session = verifySignedToken(token);
+    if (session) {
+        return res.json({ success: true, valid: true, user: session.username });
+    }
+    return res.status(401).json({ success: false, valid: false, error: 'Session expired or invalid.' });
+});
+
+// 3. Change Staff Password (Protected with Active Staff Token)
+app.post(['/api/auth/change-password', '/auth/change-password'], requireStaffAuth, (req, res) => {
+    const { currentPassword, newPassword } = req.body || {};
+    const creds = getAdminCredentials();
+
+    if (!currentPassword || currentPassword !== creds.password) {
+        return res.status(400).json({ success: false, error: 'Current password is incorrect.' });
+    }
+    if (!newPassword || newPassword.length < 4) {
+        return res.status(400).json({ success: false, error: 'New password must be at least 4 characters long.' });
+    }
+
+    try {
+        let conf = {};
+        if (fs.existsSync(CONFIG_FILE)) {
+            conf = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        }
+        conf.adminPassword = newPassword;
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(conf, null, 2), 'utf8');
+        return res.json({ success: true, message: 'Password updated successfully.' });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: 'Failed to update config file: ' + e.message });
+    }
+});
+
+// 4. Staff Sign Out
+app.post(['/api/auth/logout', '/auth/logout'], (req, res) => {
+    res.json({ success: true, message: 'Logged out successfully.' });
+});
+
+// 5. Public Waiting Lounge TV Queue (Strictly Sanitized - Zero Customer Private Data)
+app.get(['/api/tv/queue', '/tv/queue'], (req, res) => {
+    const cards = readJobCards();
+    const sanitized = cards
+        .filter(c => {
+            const s = (c.status || '').toLowerCase().trim();
+            const b = (c.currentBay || '').toLowerCase().trim();
+            const isClosed = s === 'completed' || s === 'delivered' || s === 'closed' || s === 'cancelled' ||
+                             s.includes('paid') || s.includes('closed') || b.includes('closed') || c.paymentCleared === true;
+            return !isClosed;
+        })
+        .map(c => ({
+            id: c.id,
+            currentBay: c.currentBay || 'Bay 1',
+            status: c.status || 'In Progress',
+            vehicle: {
+                plateNo: c.vehicle?.plateNo || 'Vehicle',
+                makeModel: c.vehicle?.makeModel || '',
+                color: c.vehicle?.color || ''
+            }
+        }));
+
+    res.json({ success: true, data: sanitized });
+});
+
+// 6. Public Customer Vehicle Tracking (Strictly Sanitized - Zero Other Customer Data)
+app.get(['/api/public/track', '/public/track'], (req, res) => {
+    const q = (req.query.q || req.query.plate || req.query.id || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!q) {
+        return res.status(400).json({ success: false, message: 'Vehicle registration number or Job Card ID required.' });
+    }
+    const cards = readJobCards();
+    const found = cards.find(c => {
+        const p = (c.vehicle?.plateNo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const id = (c.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return p.includes(q) || id.includes(q);
+    });
+
+    if (!found) {
+        return res.status(404).json({ success: false, message: 'No active job card found for this registration number.' });
+    }
+
+    res.json({
+        success: true,
+        data: {
+            id: found.id,
+            vehicle: {
+                plateNo: found.vehicle?.plateNo || 'Vehicle',
+                makeModel: found.vehicle?.makeModel || ''
+            },
+            currentBay: found.currentBay || 'Bay 1',
+            status: found.status || 'In Progress',
+            serviceAdvisor: found.serviceAdvisor || 'Service Incharge'
+        }
+    });
+});
+
+// REST API Endpoints (Protected with requireStaffAuth)
+app.get(['/api/jobcards', '/jobcards'], requireStaffAuth, (req, res) => {
     const cards = readJobCards();
     res.json({ success: true, data: cards });
 });
 
-app.get(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
+app.get(['/api/jobcards/:id', '/jobcards/:id'], requireStaffAuth, (req, res) => {
     const cards = readJobCards();
     const found = cards.find(c => c.id.toLowerCase() === req.params.id.toLowerCase());
     if (found) {
@@ -179,8 +377,8 @@ app.get(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
     }
 });
 
-// Create or Update Job Card via POST
-app.post(['/api/jobcards', '/jobcards'], (req, res) => {
+// Create or Update Job Card via POST (Protected)
+app.post(['/api/jobcards', '/jobcards'], requireStaffAuth, (req, res) => {
     const newCard = req.body;
     if (!newCard || !newCard.id) {
         return res.status(400).json({ success: false, message: 'Valid job card object required' });
@@ -211,8 +409,8 @@ app.post(['/api/jobcards', '/jobcards'], (req, res) => {
     res.json({ success: true, data: newCard });
 });
 
-// Update Job Card via PUT
-app.put(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
+// Update Job Card via PUT (Protected)
+app.put(['/api/jobcards/:id', '/jobcards/:id'], requireStaffAuth, (req, res) => {
     const updated = req.body;
     const cards = readJobCards();
     const idx = cards.findIndex(c => c.id.toLowerCase() === req.params.id.toLowerCase());
@@ -239,7 +437,7 @@ app.put(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
     res.json({ success: true, data: cards[idx >= 0 ? idx : 0] });
 });
 
-app.put(['/api/jobcards/:id/bay', '/jobcards/:id/bay'], (req, res) => {
+app.put(['/api/jobcards/:id/bay', '/jobcards/:id/bay'], requireStaffAuth, (req, res) => {
     const { bay, status } = req.body;
     const cards = readJobCards();
     const idx = cards.findIndex(c => c.id.toLowerCase() === req.params.id.toLowerCase());
@@ -272,7 +470,7 @@ app.put(['/api/jobcards/:id/bay', '/jobcards/:id/bay'], (req, res) => {
     res.json({ success: true, data: cards[idx] });
 });
 
-app.delete(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
+app.delete(['/api/jobcards/:id', '/jobcards/:id'], requireStaffAuth, (req, res) => {
     let cards = readJobCards();
     const initialLen = cards.length;
     cards = cards.filter(c => c.id.toLowerCase() !== req.params.id.toLowerCase());
@@ -289,7 +487,7 @@ app.delete(['/api/jobcards/:id', '/jobcards/:id'], (req, res) => {
 // GEMINI AI AUTOMOTIVE DIAGNOSTIC ENGINE (SERVER-SIDE PROXY)
 // Accurately interprets English, Urdu, and Roman Urdu mechanical concerns
 // ==========================================================================
-app.post(['/api/ai/diagnose', '/ai/diagnose'], (req, res) => {
+app.post(['/api/ai/diagnose', '/ai/diagnose'], requireStaffAuth, (req, res) => {
     const { concern, makeModel, mileage, apiKey: clientApiKey } = req.body;
     const apiKey = clientApiKey || getGeminiApiKey();
 
@@ -580,8 +778,8 @@ function generateAdvancedAutomotiveDiagnosis(concern, makeModel) {
     };
 }
 
-// Trigger voice announcement
-app.post(['/api/tv/announce', '/tv/announce'], (req, res) => {
+// Trigger voice announcement (Protected)
+app.post(['/api/tv/announce', '/tv/announce'], requireStaffAuth, (req, res) => {
     const { plateNo, makeModel, message } = req.body;
     broadcastEvent('voice_announce', {
         plateNo: plateNo || 'Test Vehicle',
@@ -631,8 +829,22 @@ if (require.main === module) {
         try {
             wssInstance = new WebSocket.Server({ server, path: '/ws' });
             wssInstance.on('connection', (ws) => {
-                const cards = readJobCards();
-                ws.send(JSON.stringify({ type: 'snapshot', data: cards, timestamp: Date.now() }));
+                ws.isStaffAuthenticated = false;
+                ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() }));
+
+                ws.on('message', (msgStr) => {
+                    try {
+                        const parsed = JSON.parse(msgStr);
+                        if (parsed.type === 'auth' && parsed.token) {
+                            const session = verifySignedToken(parsed.token);
+                            if (session) {
+                                ws.isStaffAuthenticated = true;
+                                const cards = readJobCards();
+                                ws.send(JSON.stringify({ type: 'snapshot', data: cards, timestamp: Date.now() }));
+                            }
+                        }
+                    } catch (err) {}
+                });
             });
         } catch (wsErr) {
             console.warn('WebSocket init warning:', wsErr.message);

@@ -7,6 +7,16 @@ const API_BASE = '/api';
 const LOCAL_STORAGE_KEY = 'al_shaheen_job_cards_v3';
 const SYNC_CHANNEL_NAME = 'al_shaheen_hub_sync_v2';
 
+function getStaffAuthHeaders(extraHeaders = {}) {
+    const token = (typeof window !== 'undefined') ?
+        (localStorage.getItem('al_shaheen_staff_token') || sessionStorage.getItem('al_shaheen_staff_token') || '') : '';
+    const headers = { ...extraHeaders };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
+
 let syncChannel = null;
 try {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -72,6 +82,16 @@ class JobCardAPI {
             const wsUrl = `${proto}//${window.location.host}/ws`;
             this.ws = new WebSocket(wsUrl);
 
+            this.ws.onopen = () => {
+                const token = (typeof window !== 'undefined') ?
+                    (localStorage.getItem('al_shaheen_staff_token') || sessionStorage.getItem('al_shaheen_staff_token') || '') : '';
+                if (token && this.ws.readyState === WebSocket.OPEN) {
+                    try {
+                        this.ws.send(JSON.stringify({ type: 'auth', token }));
+                    } catch (e) {}
+                }
+            };
+
             this.ws.onmessage = (evt) => {
                 try {
                     const msg = JSON.parse(evt.data);
@@ -136,11 +156,21 @@ class JobCardAPI {
     startLiveHeartbeat() {
         if (typeof window === 'undefined') return;
         setInterval(async () => {
+            const token = localStorage.getItem('al_shaheen_staff_token') || sessionStorage.getItem('al_shaheen_staff_token') || '';
+            // Only poll protected jobcards endpoint if user is logged in
+            if (!token) return;
+
             try {
                 const res = await fetch(`${API_BASE}/jobcards?_t=${Date.now()}`, {
                     cache: 'no-store',
-                    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+                    headers: getStaffAuthHeaders({ 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' })
                 });
+
+                if (res.status === 401) {
+                    window.dispatchEvent(new CustomEvent('hub-auth-required'));
+                    return;
+                }
+
                 if (res.ok) {
                     const json = await res.json();
                     if (json.success && Array.isArray(json.data)) {
@@ -157,13 +187,19 @@ class JobCardAPI {
         }, 1000);
     }
 
-    // Fetch all job cards (with strict cache busting)
+    // Fetch all job cards (Protected with staff auth)
     async getAllJobCards() {
         try {
             const res = await fetch(`${API_BASE}/jobcards?_t=${Date.now()}`, {
                 cache: 'no-store',
-                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+                headers: getStaffAuthHeaders({ 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' })
             });
+
+            if (res.status === 401) {
+                window.dispatchEvent(new CustomEvent('hub-auth-required'));
+                return [];
+            }
+
             if (res.ok) {
                 const json = await res.json();
                 if (json.success && Array.isArray(json.data)) {
@@ -177,6 +213,37 @@ class JobCardAPI {
         }
 
         return this.getLocalJobCards();
+    }
+
+    // Public TV Queue (Sanitized, no customer private data)
+    async getTvQueue() {
+        try {
+            const res = await fetch(`${API_BASE}/tv/queue?_t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    return json.data;
+                }
+            }
+        } catch (e) {}
+        return [];
+    }
+
+    // Public Vehicle Tracking (Sanitized, no customer private data)
+    async trackVehicle(query) {
+        try {
+            const res = await fetch(`${API_BASE}/public/track?q=${encodeURIComponent(query)}&_t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
+            const json = await res.json();
+            return json;
+        } catch (e) {
+            return { success: false, message: e.message };
+        }
     }
 
     // Save or update a job card
@@ -197,10 +264,12 @@ class JobCardAPI {
         try {
             const res = await fetch(`${API_BASE}/jobcards`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getStaffAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(card)
             });
-            if (res.ok) {
+            if (res.status === 401) {
+                window.dispatchEvent(new CustomEvent('hub-auth-required'));
+            } else if (res.ok) {
                 const json = await res.json();
                 if (json.success && json.data) {
                     savedCard = json.data;
@@ -258,10 +327,12 @@ class JobCardAPI {
         try {
             const res = await fetch(`${API_BASE}/jobcards/${encodeURIComponent(id)}/bay`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getStaffAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ bay, status })
             });
-            if (res.ok) {
+            if (res.status === 401) {
+                window.dispatchEvent(new CustomEvent('hub-auth-required'));
+            } else if (res.ok) {
                 const json = await res.json();
                 if (json.success && json.data) {
                     updatedCard = json.data;
@@ -304,9 +375,13 @@ class JobCardAPI {
         }
 
         try {
-            await fetch(`${API_BASE}/jobcards/${encodeURIComponent(id)}`, {
-                method: 'DELETE'
+            const res = await fetch(`${API_BASE}/jobcards/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                headers: getStaffAuthHeaders()
             });
+            if (res.status === 401) {
+                window.dispatchEvent(new CustomEvent('hub-auth-required'));
+            }
         } catch (err) {
             console.warn('API delete failed:', err.message);
         }

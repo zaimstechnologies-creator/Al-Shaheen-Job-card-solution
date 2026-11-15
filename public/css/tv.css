@@ -142,20 +142,26 @@ body.tv-lounge-body {
 /* 60-Inch Screen Side-by-Side Main Container */
 .tv-main-container {
     display: flex;
+    flex-direction: row;
     height: calc(100vh - 76px);
+    max-height: calc(100vh - 76px);
     width: 100vw;
-    padding: 20px;
-    gap: 22px;
+    padding: 16px 20px;
+    gap: 20px;
     background: radial-gradient(circle at 50% 20%, #101c3d 0%, var(--tv-bg) 100%);
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
-/* Left Column: Al Shaheen Video Player (52% on 60" TV) */
+/* Left Column: Al Shaheen Video Player (50% on 60" TV) */
 .tv-video-pane {
-    flex: 1.15;
+    flex: 1 1 50%;
+    max-width: 50%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     background: #000;
-    border-radius: 18px;
+    border-radius: 16px;
     overflow: hidden;
     border: 2px solid var(--tv-card-border);
     box-shadow: 0 10px 40px rgba(0,0,0,0.7);
@@ -215,13 +221,15 @@ body.tv-lounge-body {
     color: var(--tv-text-muted);
 }
 
-/* Right Column: Live Workshop Bays & Queue (48% on 60" TV) */
+/* Right Column: Live Workshop Bays & Queue (50% on 60" TV) */
 .tv-queue-pane {
-    flex: 1;
+    flex: 1 1 50%;
+    max-width: 50%;
+    height: 100%;
     display: flex;
     flex-direction: column;
     background: var(--tv-card-bg);
-    border-radius: 18px;
+    border-radius: 16px;
     border: 2px solid var(--tv-card-border);
     box-shadow: 0 10px 40px rgba(0,0,0,0.6);
     overflow: hidden;
@@ -469,29 +477,79 @@ body.tv-lounge-body {
     to { transform: translateX(-100%); }
 }
 
-/* Mobile & Tablet Responsiveness */
-@media (max-width: 1024px) {
+/* Fullscreen TV Mode */
+:fullscreen,
+:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
+:fullscreen .tv-header,
+:-webkit-full-screen .tv-header {
+    height: 64px !important;
+    padding: 8px 24px !important;
+}
+
+:fullscreen .tv-main-container,
+:-webkit-full-screen .tv-main-container {
+    height: calc(100vh - 64px) !important;
+    max-height: calc(100vh - 64px) !important;
+    padding: 12px 18px !important;
+    gap: 16px !important;
+    flex-direction: row !important;
+}
+
+:fullscreen .tv-video-pane,
+:-webkit-full-screen .tv-video-pane {
+    flex: 1 1 50% !important;
+    max-width: 50% !important;
+    height: 100% !important;
+}
+
+:fullscreen .tv-queue-pane,
+:-webkit-full-screen .tv-queue-pane {
+    flex: 1 1 50% !important;
+    max-width: 50% !important;
+    height: 100% !important;
+}
+
+/* Smart TV Screen Adaptability (Guarantees 50/50 Side-by-Side on all TV Displays) */
+@media (min-width: 601px) or (orientation: landscape) {
     .tv-main-container {
-        flex-direction: column;
-        height: auto;
-        padding: 14px;
-        gap: 16px;
+        display: flex !important;
+        flex-direction: row !important;
+        height: calc(100vh - 76px) !important;
+        max-height: calc(100vh - 76px) !important;
+        overflow: hidden !important;
     }
 
     .tv-video-pane {
-        height: 380px;
-        flex: none;
+        flex: 1 1 50% !important;
+        max-width: 50% !important;
+        height: 100% !important;
     }
 
     .tv-queue-pane {
-        flex: none;
-        min-height: 400px;
+        flex: 1 1 50% !important;
+        max-width: 50% !important;
+        height: 100% !important;
     }
+}
 
-    .tv-header {
-        height: auto;
-        flex-wrap: wrap;
-        gap: 12px;
-        padding: 12px 16px;
+/* Portrait Mobile View Only */
+@media (max-width: 600px) and (orientation: portrait) {
+    .tv-main-container {
+        flex-direction: column !important;
+        height: auto !important;
+        padding: 12px !important;
+    }
+    .tv-video-pane {
+        height: 260px !important;
+        max-width: 100% !important;
+    }
+    .tv-queue-pane {
+        min-height: 400px !important;
+        max-width: 100% !important;
     }
 }

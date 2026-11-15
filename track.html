@@ -216,12 +216,19 @@
                 return;
             }
 
-            const cards = await window.HubAPI.getAllJobCards();
-            const found = cards.find(c => {
-                const p = (c.vehicle?.plateNo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                const id = (c.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                return p.includes(query) || id.includes(query);
-            });
+            let found = null;
+            if (window.HubAPI && typeof window.HubAPI.trackVehicle === 'function') {
+                const res = await window.HubAPI.trackVehicle(query);
+                if (res && res.success && res.data) {
+                    found = res.data;
+                }
+            } else {
+                try {
+                    const r = await fetch(`/api/public/track?q=${encodeURIComponent(query)}`);
+                    const j = await r.json();
+                    if (j.success && j.data) found = j.data;
+                } catch (e) {}
+            }
 
             if (!found) {
                 alert('No active vehicle record found for registration number: ' + query.toUpperCase());

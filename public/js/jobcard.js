@@ -378,9 +378,13 @@ async function runGeminiDiagnosis() {
 
         // 1. Try local server proxy
         try {
+            const token = localStorage.getItem('al_shaheen_staff_token') || sessionStorage.getItem('al_shaheen_staff_token') || '';
             const res = await fetch('/api/ai/diagnose', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 body: JSON.stringify({ concern, makeModel, mileage, apiKey })
             });
             if (res.ok) {

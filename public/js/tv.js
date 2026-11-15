@@ -9,12 +9,53 @@ const AL_SHAHEEN_DEFAULT_VIDEO = '3m4ApRBJmlo';
 let isMuted = true;
 let previousVolume = 100;
 let tvJobCards = [];
+let audioUnlocked = false;
+let cachedVoices = [];
+let knownReadyCards = new Set();
+let isInitialTvLoad = true;
+
+// Preload SpeechSynthesis Voices
+function loadTvVoices() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        cachedVoices = window.speechSynthesis.getVoices();
+    }
+}
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    loadTvVoices();
+    window.speechSynthesis.onvoiceschanged = loadTvVoices;
+}
+
+// User-Gesture Unlock for Web Audio & SpeechSynthesis (Bypasses Smart TV Autoplay Policies)
+function unlockTvAudio() {
+    if (audioUnlocked) return;
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+            const ctx = new AudioCtx();
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
+        }
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.resume();
+            const silent = new SpeechSynthesisUtterance(' ');
+            silent.volume = 0.01;
+            window.speechSynthesis.speak(silent);
+        }
+        audioUnlocked = true;
+    } catch (e) {}
+}
 
 // Initialize Lounge TV
 document.addEventListener('DOMContentLoaded', () => {
     initClock();
     initYouTubePlayer();
     loadTvQueue();
+
+    // Auto-unlock audio on any interaction with TV
+    document.addEventListener('click', unlockTvAudio);
+    document.addEventListener('keydown', unlockTvAudio);
+    document.addEventListener('touchstart', unlockTvAudio);
 
     // Listen to real-time events from HubAPI
     window.addEventListener('hub-data-updated', () => {
@@ -57,8 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (e) {}
 
-    // Sub-second auto-refresh queue every 1 second for live runtime sync on all devices
-    setInterval(loadTvQueue, 1000);
+    // Active smooth queue poller every 2 seconds for live sync without hammering CPU
+    setInterval(loadTvQueue, 2000);
 });
 
 // Live Clock
@@ -107,6 +148,7 @@ function setYtVolume(vol) {
 
 // Toggle Mute on TV
 function toggleTvAudio() {
+    unlockTvAudio();
     const btn = document.getElementById('tvAudioBtn');
     isMuted = !isMuted;
 
@@ -142,18 +184,43 @@ function toggleTvFullscreen() {
 // Load and Render Queue
 let lastTvHash = '';
 async function loadTvQueue() {
-    if (window.HubAPI) {
-        tvJobCards = await window.HubAPI.getAllJobCards();
+    let newCards = [];
+    if (window.HubAPI && typeof window.HubAPI.getTvQueue === 'function') {
+        newCards = await window.HubAPI.getTvQueue();
     } else {
         try {
-            const raw = localStorage.getItem('al_shaheen_job_cards_v3');
-            tvJobCards = raw ? JSON.parse(raw) : [];
+            const res = await fetch('/api/tv/queue?_t=' + Date.now(), {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    newCards = json.data;
+                }
+            }
         } catch (e) {
-            tvJobCards = [];
+            newCards = [];
         }
     }
 
-    const currentHash = tvJobCards.map(c => `${c.id}|${c.currentBay}|${c.status}|${c.paymentCleared}`).join(';;');
+    tvJobCards = newCards;
+
+    // Detect newly ready vehicles to announce automatically over lounge speakers
+    const currentReadyList = tvJobCards.filter(c => c.status === 'Ready' || c.currentBay === 'Bay 6');
+    if (!isInitialTvLoad) {
+        currentReadyList.forEach(car => {
+            if (!knownReadyCards.has(car.id)) {
+                knownReadyCards.add(car.id);
+                triggerReadyAnnouncement(car.vehicle?.plateNo || 'Vehicle', car.vehicle?.makeModel || '', car.customer?.name || '');
+            }
+        });
+    } else {
+        currentReadyList.forEach(c => knownReadyCards.add(c.id));
+        isInitialTvLoad = false;
+    }
+
+    const currentHash = tvJobCards.map(c => `${c.id}|${c.currentBay}|${c.status}`).join(';;');
     if (currentHash !== lastTvHash) {
         lastTvHash = currentHash;
         renderQueueList(tvJobCards);
@@ -217,7 +284,7 @@ function renderQueueList(cards) {
         const bayName = isReady ? 'Bay 6 (Delivery)' : (c.currentBay || 'Bay 1');
         const plate = c.vehicle?.plateNo || 'REG-PENDING';
         const model = c.vehicle?.makeModel || 'Vehicle';
-        const customer = c.customer?.name || 'Customer';
+        const customer = c.customer?.name ? `<div class="tv-car-customer">Customer: ${escapeHtml(c.customer.name)}</div>` : '';
 
         return `
             <div class="tv-bay-card ${isReady ? 'ready-state' : ''}">
@@ -228,7 +295,7 @@ function renderQueueList(cards) {
                     <div class="tv-car-info">
                         <div class="tv-car-plate">${escapeHtml(plate)}</div>
                         <div class="tv-car-model">${escapeHtml(model)}</div>
-                        <div class="tv-car-customer">Customer: ${escapeHtml(customer)}</div>
+                        ${customer}
                     </div>
                 </div>
                 <div class="tv-bay-right">
@@ -250,6 +317,9 @@ function playAirportChime() {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
 
         const now = ctx.currentTime;
         const osc1 = ctx.createOscillator();
@@ -260,7 +330,7 @@ function playAirportChime() {
         // Chime note 1: D5 (587.33 Hz)
         osc1.type = 'sine';
         osc1.frequency.setValueAtTime(587.33, now);
-        gain1.gain.setValueAtTime(0.35, now);
+        gain1.gain.setValueAtTime(0.4, now);
         gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
 
         osc1.connect(gain1);
@@ -271,7 +341,7 @@ function playAirportChime() {
         // Chime note 2: A5 (880.00 Hz) - plays 0.22s after note 1
         osc2.type = 'sine';
         osc2.frequency.setValueAtTime(880.00, now + 0.22);
-        gain2.gain.setValueAtTime(0.4, now + 0.22);
+        gain2.gain.setValueAtTime(0.45, now + 0.22);
         gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
 
         osc2.connect(gain2);
@@ -288,6 +358,8 @@ function playAirportChime() {
 // Smoothly lowers YouTube video volume during speech, then restores it
 // ==========================================================================
 function triggerReadyAnnouncement(plateNo, model, customer) {
+    unlockTvAudio();
+
     // 1. Duck YouTube video volume down to 10% for crisp announcement clarity
     setYtVolume(10);
 
@@ -301,19 +373,23 @@ function triggerReadyAnnouncement(plateNo, model, customer) {
             return;
         }
 
-        window.speechSynthesis.cancel();
+        try {
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.resume();
+        } catch (e) {}
 
         const cleanPlate = (plateNo || 'Vehicle').split('').join(' ');
         const cleanModel = model ? `${model}` : '';
-        const speechText = `Attention please: Vehicle ${cleanPlate}, ${cleanModel}, is ready for delivery. Please proceed to the Accounts Counter for key collection. Thank you!`;
+        const speechText = `Attention please: Vehicle ${cleanPlate}, ${cleanModel}, is ready for collection. Please proceed to the Accounts Counter for key collection. Thank you!`;
 
         const utterance = new SpeechSynthesisUtterance(speechText);
-        utterance.rate = 0.90; // Calm, clear, professional broadcast cadence
+        utterance.rate = 0.88; // Calm, clear, professional broadcast cadence
         utterance.pitch = 1.05;
         utterance.volume = 1.0;
+        utterance.lang = 'en-US';
 
-        const voices = window.speechSynthesis.getVoices();
-        const engVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Samantha')));
+        const voices = cachedVoices.length > 0 ? cachedVoices : (window.speechSynthesis ? window.speechSynthesis.getVoices() : []);
+        const engVoice = voices.find(v => v.lang && v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Jenny') || v.name.includes('David') || v.name.includes('US') || v.name.includes('UK'))) || voices.find(v => v.lang && v.lang.startsWith('en'));
         if (engVoice) {
             utterance.voice = engVoice;
         }
@@ -334,6 +410,7 @@ function triggerReadyAnnouncement(plateNo, model, customer) {
 }
 
 function speakCustomAnnouncement(text) {
+    unlockTvAudio();
     setYtVolume(10);
     playAirportChime();
 
@@ -343,9 +420,16 @@ function speakCustomAnnouncement(text) {
             return;
         }
 
-        window.speechSynthesis.cancel();
+        try {
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.resume();
+        } catch (e) {}
+
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.92;
+        utterance.rate = 0.90;
+        utterance.volume = 1.0;
+        utterance.lang = 'en-US';
+
         utterance.onend = () => {
             setTimeout(() => setYtVolume(100), 800);
         };
@@ -358,33 +442,8 @@ function speakCustomAnnouncement(text) {
 
 // Test Announcement
 function testVoiceAnnouncement() {
-    triggerReadyAnnouncement('AQP 007', 'Mazda Flair', 'Ali');
-}
-
-// Staff Portal PIN modal
-function openStaffPinModal() {
-    const modal = document.getElementById('tvPinModal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeStaffPinModal() {
-    const modal = document.getElementById('tvPinModal');
-    if (modal) modal.style.display = 'none';
-    const pinInput = document.getElementById('tvPinInput');
-    if (pinInput) pinInput.value = '';
-}
-
-function verifyTvPin() {
-    const pinInput = document.getElementById('tvPinInput');
-    if (!pinInput) return;
-    const pin = pinInput.value.trim();
-
-    if (pin === '1234') {
-        window.location.href = '/workshop';
-    } else {
-        alert('Incorrect PIN! Access denied.');
-        pinInput.value = '';
-    }
+    unlockTvAudio();
+    triggerReadyAnnouncement('AQP 007', 'Mazda Flair', 'Valued Customer');
 }
 
 function escapeHtml(str) {
@@ -400,6 +459,4 @@ function escapeHtml(str) {
 window.toggleTvAudio = toggleTvAudio;
 window.toggleTvFullscreen = toggleTvFullscreen;
 window.testVoiceAnnouncement = testVoiceAnnouncement;
-window.openStaffPinModal = openStaffPinModal;
-window.closeStaffPinModal = closeStaffPinModal;
 window.verifyTvPin = verifyTvPin;

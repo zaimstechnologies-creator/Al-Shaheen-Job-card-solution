@@ -1,17 +1,25 @@
 // ==========================================================================
 // AL SHAHEEN AUTO HUB - WORKSHOP DASHBOARD, KANBAN & SECURITY CONTROLLER
-// Features: 1-Click Instant Login | Real-time Kanban | Database Search
+// Enterprise Secure Token Authentication & Real-time Live Synchronizer
 // ==========================================================================
 
 const STAFF_AUTH_KEY = 'al_shaheen_staff_session';
+const STAFF_TOKEN_KEY = 'al_shaheen_staff_token';
+
 let allCards = [];
 let activeDeptFilter = 'all';
 let searchQuery = '';
 
+function getStaffToken() {
+    return localStorage.getItem(STAFF_TOKEN_KEY) || sessionStorage.getItem(STAFF_TOKEN_KEY) || '';
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check Staff Authentication
+    // 1. Initial token existence check
     if (checkStaffAuth()) {
         showAuthenticatedUi();
+        // Asynchronously verify token signature with server
+        verifySessionWithServer();
     } else {
         showStaffLogin();
     }
@@ -20,17 +28,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listen to real-time events
     window.addEventListener('hub-data-updated', () => {
-        refreshDashboard();
-    });
-
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'al_shaheen_job_cards_v3') {
+        if (checkStaffAuth()) {
             refreshDashboard();
         }
     });
 
-    // Active background runtime sync (checks every 1.2s for seamless multi-device updates without refresh)
+    window.addEventListener('hub-auth-required', () => {
+        staffLogout();
+    });
+
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'al_shaheen_job_cards_v3' && checkStaffAuth()) {
+            refreshDashboard();
+        }
+    });
+
+    // Active background runtime sync (only runs when authenticated)
     setInterval(() => {
+        if (!checkStaffAuth()) return;
         const activeView = document.querySelector('.nav-item.active')?.dataset.view || 'dashboardView';
         if (activeView !== 'editorView') {
             refreshDashboard();
@@ -41,16 +56,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================================================
-// 1. STAFF AUTHENTICATION & LOGIN GATE
+// 1. SECURE TOKEN AUTHENTICATION & LOGIN GATE
 // ==========================================================================
 function checkStaffAuth() {
+    const token = getStaffToken();
+    return !!token && token.length > 10;
+}
+
+async function verifySessionWithServer() {
+    const token = getStaffToken();
+    if (!token) {
+        showStaffLogin();
+        return false;
+    }
     try {
-        const session = localStorage.getItem(STAFF_AUTH_KEY) || sessionStorage.getItem(STAFF_AUTH_KEY);
-        if (session) {
-            const data = JSON.parse(session);
-            return !!data.user;
+        const res = await fetch('/api/auth/verify', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            staffLogout();
+            return false;
         }
-    } catch (e) {}
+        const json = await res.json();
+        if (json.success && json.valid) {
+            showAuthenticatedUi(json.user);
+            return true;
+        }
+    } catch (e) {
+        // Network offline fallback: allow existing session
+        return true;
+    }
+    staffLogout();
     return false;
 }
 
@@ -59,67 +95,215 @@ function showStaffLogin() {
     const mainWrapper = document.getElementById('authenticatedAppWrapper');
     if (authScreen) authScreen.style.display = 'flex';
     if (mainWrapper) mainWrapper.style.display = 'none';
+
+    // Clear password input on login screen
+    const passInput = document.getElementById('authPassword');
+    if (passInput) passInput.value = '';
 }
 
-function showAuthenticatedUi() {
+function showAuthenticatedUi(userName) {
     const authScreen = document.getElementById('staffAuthScreen');
     const mainWrapper = document.getElementById('authenticatedAppWrapper');
     if (authScreen) authScreen.style.display = 'none';
     if (mainWrapper) mainWrapper.style.display = 'block';
 
     try {
-        const session = JSON.parse(localStorage.getItem(STAFF_AUTH_KEY) || sessionStorage.getItem(STAFF_AUTH_KEY) || '{"user":"Service Incharge"}');
+        let displayName = userName;
+        if (!displayName) {
+            const session = JSON.parse(localStorage.getItem(STAFF_AUTH_KEY) || sessionStorage.getItem(STAFF_AUTH_KEY) || '{}');
+            displayName = session.user || 'Service Incharge';
+        }
         const userBadge = document.getElementById('staffUserBadge');
         if (userBadge) {
-            userBadge.textContent = `👤 ${session.user || 'Service Incharge'}`;
+            userBadge.textContent = `👤 ${displayName}`;
         }
     } catch (e) {}
 }
 
-// 1-Click Instant Login
-function quickLoginStaff() {
-    const sessionObj = {
-        user: 'Service Incharge (Admin)',
-        role: 'admin',
-        loginTime: Date.now()
-    };
-    localStorage.setItem(STAFF_AUTH_KEY, JSON.stringify(sessionObj));
-    showAuthenticatedUi();
-    refreshDashboard();
-}
-
-// Form-based Login
-function handleStaffLoginSubmit(e) {
+// Strict Form-based Login with Server Verification
+async function handleStaffLoginSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
+
+    const errBox = document.getElementById('authErrorMessage');
+    if (errBox) {
+        errBox.style.display = 'none';
+        errBox.textContent = '';
+    }
 
     const usernameInput = document.getElementById('authUsername');
     const passwordInput = document.getElementById('authPassword');
     const rememberMe = document.getElementById('authRememberMe')?.checked;
+    const submitBtn = document.getElementById('authSubmitBtn');
 
-    const u = (usernameInput?.value || '').trim() || 'Admin';
-    const p = (passwordInput?.value || '').trim();
+    const username = (usernameInput?.value || '').trim();
+    const password = (passwordInput?.value || '').trim();
 
-    // Accept common passwords: 1234, 123456, admin, alshaheen, alshaheen@2026, or any non-empty
-    const sessionObj = {
-        user: u.toUpperCase(),
-        loginTime: Date.now()
-    };
-
-    if (rememberMe) {
-        localStorage.setItem(STAFF_AUTH_KEY, JSON.stringify(sessionObj));
-    } else {
-        sessionStorage.setItem(STAFF_AUTH_KEY, JSON.stringify(sessionObj));
+    if (!username || !password) {
+        if (errBox) {
+            errBox.textContent = 'Please enter both username and password.';
+            errBox.style.display = 'block';
+        }
+        return;
     }
 
-    showAuthenticatedUi();
-    refreshDashboard();
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '🔒 Verifying Credentials...';
+    }
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success && data.token) {
+            const storage = rememberMe ? localStorage : sessionStorage;
+
+            // Clear previous session remnants
+            localStorage.removeItem(STAFF_TOKEN_KEY);
+            sessionStorage.removeItem(STAFF_TOKEN_KEY);
+            localStorage.removeItem(STAFF_AUTH_KEY);
+            sessionStorage.removeItem(STAFF_AUTH_KEY);
+
+            // Store verified token & session
+            storage.setItem(STAFF_TOKEN_KEY, data.token);
+            storage.setItem(STAFF_AUTH_KEY, JSON.stringify({
+                user: data.user || username,
+                role: data.role || 'admin',
+                loginTime: Date.now()
+            }));
+
+            if (passwordInput) passwordInput.value = '';
+
+            showAuthenticatedUi(data.user || username);
+            await refreshDashboard();
+        } else {
+            if (errBox) {
+                errBox.textContent = data.error || 'Access Denied: Invalid username or password.';
+                errBox.style.display = 'block';
+            }
+            if (passwordInput) {
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        }
+    } catch (err) {
+        if (errBox) {
+            errBox.textContent = 'Connection error. Unable to verify credentials with server.';
+            errBox.style.display = 'block';
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = '🔒 Sign In Securely';
+        }
+    }
 }
 
-// Logout
+// Secure Staff Logout
 function staffLogout() {
+    const token = getStaffToken();
+    if (token) {
+        try {
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => {});
+        } catch (e) {}
+    }
+
     localStorage.removeItem(STAFF_AUTH_KEY);
     sessionStorage.removeItem(STAFF_AUTH_KEY);
+    localStorage.removeItem(STAFF_TOKEN_KEY);
+    sessionStorage.removeItem(STAFF_TOKEN_KEY);
+
+    allCards = [];
     showStaffLogin();
+}
+
+// Change Staff Admin Password
+async function changeAdminPassword() {
+    const statusEl = document.getElementById('changePasswordStatus');
+    const currentPass = document.getElementById('currentStaffPasswordInput')?.value || '';
+    const newPass = document.getElementById('newStaffPasswordInput')?.value || '';
+    const confirmPass = document.getElementById('confirmStaffPasswordInput')?.value || '';
+
+    if (statusEl) {
+        statusEl.style.display = 'none';
+        statusEl.textContent = '';
+    }
+
+    if (!currentPass || !newPass || !confirmPass) {
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.background = '#fee2e2';
+            statusEl.style.color = '#991b1b';
+            statusEl.textContent = 'All password fields are required.';
+        }
+        return;
+    }
+
+    if (newPass !== confirmPass) {
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.background = '#fee2e2';
+            statusEl.style.color = '#991b1b';
+            statusEl.textContent = 'New passwords do not match.';
+        }
+        return;
+    }
+
+    if (newPass.length < 4) {
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.background = '#fee2e2';
+            statusEl.style.color = '#991b1b';
+            statusEl.textContent = 'Password must be at least 4 characters.';
+        }
+        return;
+    }
+
+    const token = getStaffToken();
+    try {
+        const res = await fetch('/api/auth/change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ currentPassword: currentPass, newPassword: newPass })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#dcfce7';
+                statusEl.style.color = '#166534';
+                statusEl.textContent = '✓ Password updated successfully! Please keep it secure.';
+            }
+            document.getElementById('currentStaffPasswordInput').value = '';
+            document.getElementById('newStaffPasswordInput').value = '';
+            document.getElementById('confirmStaffPasswordInput').value = '';
+        } else {
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = '#fee2e2';
+                statusEl.style.color = '#991b1b';
+                statusEl.textContent = data.error || 'Failed to update password.';
+            }
+        }
+    } catch (e) {
+        if (statusEl) {
+            statusEl.style.display = 'block';
+            statusEl.style.background = '#fee2e2';
+            statusEl.style.color = '#991b1b';
+            statusEl.textContent = 'Network error while updating password.';
+        }
+    }
 }
 
 // ==========================================================================
@@ -157,16 +341,31 @@ function showView(viewId) {
     }
 }
 
-async function refreshDashboard() {
+let lastDashboardFingerprint = '';
+
+async function refreshDashboard(force = false) {
+    if (!checkStaffAuth()) return;
+
+    let cards = [];
     if (window.HubAPI) {
-        allCards = await window.HubAPI.getAllJobCards();
+        cards = await window.HubAPI.getAllJobCards();
     } else {
         const raw = localStorage.getItem('al_shaheen_job_cards_v3');
-        allCards = raw ? JSON.parse(raw) : [];
+        cards = raw ? JSON.parse(raw) : [];
     }
-    updateKpis();
-    renderKanban();
-    renderTable();
+    allCards = cards;
+
+    const currentFingerprint = allCards.map(c => 
+        `${c.id}|${c.currentBay}|${c.status}|${c.paymentCleared}|${c.netPayable}`
+    ).join(';;');
+
+    // Only update DOM if dataset has actually changed or if force=true
+    if (force || currentFingerprint !== lastDashboardFingerprint) {
+        lastDashboardFingerprint = currentFingerprint;
+        updateKpis();
+        renderKanban();
+        renderTable();
+    }
 }
 
 // ==========================================================================
@@ -540,5 +739,5 @@ window.closeJobCardPayment = closeJobCardPayment;
 window.reopenJobCard = reopenJobCard;
 window.deleteJobCardById = deleteJobCardById;
 window.handleStaffLoginSubmit = handleStaffLoginSubmit;
-window.quickLoginStaff = quickLoginStaff;
+window.changeAdminPassword = changeAdminPassword;
 window.staffLogout = staffLogout;

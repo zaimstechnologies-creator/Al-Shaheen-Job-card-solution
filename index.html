@@ -177,42 +177,37 @@
         <div class="auth-card">
             <img src="/logo.png" alt="Al Shaheen Auto Hub" class="auth-logo" onerror="this.src='logo.png'">
             <h2>AL SHAHEEN AUTO HUB</h2>
-            <p>Workshop Staff Management Portal</p>
-
-            <!-- 1-Click Fast Login -->
-            <button type="button" class="auth-quick-btn" onclick="quickLoginStaff()">
-                <span>🚀</span>
-                <span>Instant Staff Sign In (1-Click)</span>
-            </button>
-
-            <div class="auth-divider">
-                <span>or enter staff credentials</span>
+            <p style="margin-bottom:8px;">Workshop Staff Management Portal</p>
+            <div style="font-size:11.5px; color:#64748b; margin-bottom:18px;">
+                Authorized personnel only. Client records are protected.
             </div>
 
-            <form onsubmit="handleStaffLoginSubmit(event)">
+            <div id="authErrorMessage" style="display:none; color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; padding:10px 14px; border-radius:8px; font-size:12px; margin-bottom:16px; text-align:left; line-height:1.4;"></div>
+
+            <form onsubmit="handleStaffLoginSubmit(event)" autocomplete="on">
                 <div class="auth-form-group">
-                    <label>Username / Staff ID</label>
-                    <input type="text" id="authUsername" class="auth-input" placeholder="e.g. admin or advisor" value="admin">
+                    <label for="authUsername">Username / Staff ID</label>
+                    <input type="text" id="authUsername" class="auth-input" placeholder="Enter staff username" autocomplete="username" required>
                 </div>
 
                 <div class="auth-form-group">
-                    <label>Password</label>
-                    <input type="password" id="authPassword" class="auth-input" placeholder="Enter password (e.g. 1234)" value="1234">
+                    <label for="authPassword">Password</label>
+                    <input type="password" id="authPassword" class="auth-input" placeholder="Enter staff password" autocomplete="current-password" required>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-size:11.5px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; font-size:12px;">
                     <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#475569;">
-                        <input type="checkbox" id="authRememberMe" checked>
-                        <span>Remember on this PC</span>
+                        <input type="checkbox" id="authRememberMe">
+                        <span>Stay signed in on this computer</span>
                     </label>
                 </div>
 
-                <button type="submit" class="auth-btn">🔒 Sign In to Portal</button>
+                <button type="submit" id="authSubmitBtn" class="auth-btn">🔒 Sign In Securely</button>
             </form>
 
-            <div class="auth-links">
-                <a href="javascript:void(0)" onclick="quickLoginStaff()">Direct Dashboard Access ➔</a>
-                <a href="/tv" target="_blank">Lounge TV ➔</a>
+            <div class="auth-links" style="margin-top:20px; padding-top:14px; border-top:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; color:#94a3b8;">Al Shaheen Security Shield</span>
+                <a href="/tv" target="_blank" style="font-size:11.5px; color:#0284c7; text-decoration:none; font-weight:700;">Open Lounge TV ➔</a>
             </div>
         </div>
     </div>
@@ -653,23 +648,51 @@
             </div>
         </main>
 
-        <!-- Gemini AI Settings Modal -->
+        <!-- Settings & Staff Security Modal -->
         <div id="settingsModal" class="modal-backdrop">
-            <div class="modal-content" style="padding:26px;">
+            <div class="modal-content" style="padding:26px; max-width:520px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                    <h3 style="font-size:16px; font-weight:800; color:var(--navy-dark);">Google Gemini AI Settings</h3>
+                    <h3 style="font-size:16px; font-weight:800; color:var(--navy-dark);">⚙ System & Staff Security Settings</h3>
                     <button type="button" onclick="closeSettingsModal()" style="background:none; border:none; font-size:18px; cursor:pointer;">✕</button>
                 </div>
-                <p style="font-size:12px; color:#64748b; margin-bottom:16px;">
-                    Connect your Google Gemini API key to enable live master-level automotive diagnostics for Al Shaheen Auto Hub.
-                </p>
-                <div class="form-group">
-                    <label>Gemini API Key</label>
-                    <input type="password" id="geminiApiKeyInput" class="form-control" placeholder="Paste your API key here (AIzaSy...)" value="">
+
+                <!-- 1. Gemini AI Config -->
+                <div style="margin-bottom:20px;">
+                    <h4 style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:6px;">Google Gemini AI Diagnostics</h4>
+                    <p style="font-size:12px; color:#64748b; margin-bottom:10px;">
+                        Connect your Google Gemini API key to enable live master-level automotive diagnostics for Al Shaheen Auto Hub.
+                    </p>
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <input type="password" id="geminiApiKeyInput" class="form-control" placeholder="Paste your API key here (AIzaSy...)" value="">
+                    </div>
+                    <div style="display:flex; justify-content:flex-end;">
+                        <button type="button" class="btn-primary" style="padding:6px 14px; font-size:12px;" onclick="saveGeminiSettings()">Save AI Key</button>
+                    </div>
                 </div>
-                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-                    <button type="button" class="btn-secondary" onclick="closeSettingsModal()">Cancel</button>
-                    <button type="button" class="btn-primary" onclick="saveGeminiSettings()">Save Key</button>
+
+                <!-- 2. Staff Password Management -->
+                <div style="border-top:1px solid #e2e8f0; padding-top:16px;">
+                    <h4 style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:6px;">🔒 Change Staff Admin Password</h4>
+                    <p style="font-size:12px; color:#64748b; margin-bottom:12px;">
+                        Update the master staff access password to protect customer records.
+                    </p>
+                    <div id="changePasswordStatus" style="display:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:10px;"></div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:11px; font-weight:700;">Current Password</label>
+                        <input type="password" id="currentStaffPasswordInput" class="form-control" placeholder="Enter current password">
+                    </div>
+                    <div class="form-group" style="margin-bottom:8px;">
+                        <label style="font-size:11px; font-weight:700;">New Password</label>
+                        <input type="password" id="newStaffPasswordInput" class="form-control" placeholder="Enter new password (min. 4 chars)">
+                    </div>
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label style="font-size:11px; font-weight:700;">Confirm New Password</label>
+                        <input type="password" id="confirmStaffPasswordInput" class="form-control" placeholder="Re-enter new password">
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:8px;">
+                        <button type="button" class="btn-secondary" style="padding:6px 14px; font-size:12px;" onclick="closeSettingsModal()">Close</button>
+                        <button type="button" class="btn-primary" style="padding:6px 14px; font-size:12px; background:#162544;" onclick="changeAdminPassword()">Update Password</button>
+                    </div>
                 </div>
             </div>
         </div>
