@@ -1,0 +1,249 @@
+[
+  {
+    "id": "ASH-000126",
+    "createdAt": "2026-11-15T12:59:00.000Z",
+    "deliveryDue": "2026-11-15T17:30:00.000Z",
+    "status": "Ready",
+    "currentBay": "Bay 6",
+    "customer": {
+      "name": "Ali",
+      "phone": "03323164131",
+      "address": "Lahore, Pakistan"
+    },
+    "vehicle": {
+      "plateNo": "AQP 007",
+      "makeModel": "Mazda Flair (2022)",
+      "mileage": "42000",
+      "color": "Red",
+      "fuelLevel": 50
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "Mechanical",
+      "Alignment"
+    ],
+    "concern": "gari jab kisi khady main lgti hai tu side sy tik tik ki awaz ati hai, kbhi bgair khady k b speed taiz or slow krny py b ati hai",
+    "workToBeDone": "1. Perform visual and physical inspection of both front drive axles and CV boots for tears, grease leaks, and excessive play.\n2. Inspect front suspension components, stabilizer links, and control arm bushings.\n3. Replace damaged CV joint / drive axle assembly and stabilizer link.\n4. Conduct thorough road test over uneven surfaces and test drive at varied speeds.",
+    "parts": [
+      {
+        "desc": "Front Outer CV Joint / Drive Axle Assembly",
+        "qty": 1,
+        "rate": 8500,
+        "amount": 8500
+      },
+      {
+        "desc": "Front Stabilizer Link (Left/Right)",
+        "qty": 1,
+        "rate": 2800,
+        "amount": 2800
+      },
+      {
+        "desc": "Front Control Arm Bushings",
+        "qty": 1,
+        "rate": 3200,
+        "amount": 3200
+      }
+    ],
+    "labour": 4500,
+    "otherCharges": 0,
+    "discount": 500,
+    "advance": 5000,
+    "subTotal": 19000,
+    "netPayable": 18500,
+    "balance": 13500,
+    "serviceAdvisor": "Service Incharge",
+    "damageMarkers": [
+      {
+        "type": "D",
+        "x": 0.42,
+        "y": 0.15
+      },
+      {
+        "type": "S",
+        "x": 0.88,
+        "y": 0.65
+      }
+    ]
+  },
+  {
+    "id": "ASH-000127",
+    "createdAt": "2026-11-15T11:30:00.000Z",
+    "deliveryDue": "2026-11-15T16:00:00.000Z",
+    "status": "Ready",
+    "currentBay": "Bay 6",
+    "customer": {
+      "name": "Usman Tariq",
+      "phone": "03214567890",
+      "address": "DHA Phase 5, Lahore"
+    },
+    "vehicle": {
+      "plateNo": "LEA 19-4521",
+      "makeModel": "Toyota Corolla (2020)",
+      "mileage": "68000",
+      "color": "Super White",
+      "fuelLevel": 75
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "AC Service",
+      "Electrical"
+    ],
+    "concern": "AC cooling is very slow and warm air comes out in daytime traffic",
+    "workToBeDone": "1. Check AC gas pressure and test for refrigerant leaks.\n2. Clean condenser coil and inspect cooling fan high speed relay.\n3. Replace cabin AC filter and top up R134a refrigerant.",
+    "parts": [
+      {
+        "desc": "Cabin AC Air Filter (OEM)",
+        "qty": 1,
+        "rate": 1800,
+        "amount": 1800
+      },
+      {
+        "desc": "R134a Refrigerant Gas Top-up & Oil",
+        "qty": 1,
+        "rate": 3500,
+        "amount": 3500
+      }
+    ],
+    "labour": 2500,
+    "otherCharges": 0,
+    "discount": 300,
+    "advance": 2000,
+    "subTotal": 7800,
+    "netPayable": 7500,
+    "balance": 5500,
+    "serviceAdvisor": "Hamza Tariq",
+    "damageMarkers": []
+  },
+  {
+    "id": "ASH-000128",
+    "createdAt": "2026-11-15T10:15:00.000Z",
+    "deliveryDue": "2026-11-15T14:45:00.000Z",
+    "status": "Ready",
+    "currentBay": "Bay 6",
+    "customer": {
+      "name": "Dr. Bilal Ahmad",
+      "phone": "03009876543",
+      "address": "Askari 11, Lahore"
+    },
+    "vehicle": {
+      "plateNo": "ICT 789",
+      "makeModel": "Honda Civic (2021)",
+      "mileage": "35000",
+      "color": "Crystal Black",
+      "fuelLevel": 40
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "General Service",
+      "Alignment",
+      "Balancing",
+      "Car Wash"
+    ],
+    "concern": "Periodic 35k km general tuning, synthetic oil change, wheel alignment and vehicle detailing wash",
+    "workToBeDone": "1. Replace engine oil and genuine oil filter.\n2. Complete computer scan and throttle body service.\n3. 4-Wheel computer alignment and road force balancing.\n4. Full underbody steam wash and interior vacuuming.",
+    "parts": [
+      {
+        "desc": "Fully Synthetic Engine Oil 5W-30 (4L)",
+        "qty": 1,
+        "rate": 11500,
+        "amount": 11500
+      },
+      {
+        "desc": "Genuine Honda Oil Filter",
+        "qty": 1,
+        "rate": 2200,
+        "amount": 2200
+      },
+      {
+        "desc": "Engine Air Cleaner Element",
+        "qty": 1,
+        "rate": 2400,
+        "amount": 2400
+      }
+    ],
+    "labour": 5000,
+    "otherCharges": 1200,
+    "discount": 1000,
+    "advance": 10000,
+    "subTotal": 22300,
+    "netPayable": 21300,
+    "balance": 11300,
+    "serviceAdvisor": "Service Incharge",
+    "damageMarkers": [
+      {
+        "type": "C",
+        "x": 0.15,
+        "y": 0.45
+      }
+    ]
+  },
+  {
+    "id": "ASH-000129",
+    "createdAt": "2026-11-15T13:40:00.000Z",
+    "deliveryDue": "2026-11-15T18:00:00.000Z",
+    "status": "Ready",
+    "currentBay": "Bay 6",
+    "customer": {
+      "name": "Zeeshan Malik",
+      "phone": "03451122334",
+      "address": "Cantt, Lahore"
+    },
+    "vehicle": {
+      "plateNo": "BAP 556",
+      "makeModel": "KIA Sportage (2023)",
+      "mileage": "19500",
+      "color": "Mercury Grey",
+      "fuelLevel": 85
+    },
+    "inventory": {
+      "spareWheel": true,
+      "toolKit": true,
+      "floorMats": true,
+      "valuablesOut": true
+    },
+    "departments": [
+      "Mechanical",
+      "Tyres Works"
+    ],
+    "concern": "Brake vibration at high speed and squealing sound when braking gently",
+    "workToBeDone": "1. Inspect front and rear brake pads and measure rotor thickness.\n2. Resurface brake rotors on lathe machine.\n3. Install new ceramic front brake pads with anti-squeal shims.",
+    "parts": [
+      {
+        "desc": "Front Ceramic Brake Pad Set",
+        "qty": 1,
+        "rate": 7800,
+        "amount": 7800
+      },
+      {
+        "desc": "Brake Rotor Precision Machining",
+        "qty": 2,
+        "rate": 1500,
+        "amount": 3000
+      }
+    ],
+    "labour": 3500,
+    "otherCharges": 0,
+    "discount": 500,
+    "advance": 5000,
+    "subTotal": 14300,
+    "netPayable": 13800,
+    "balance": 8800,
+    "serviceAdvisor": "Hamza Tariq",
+    "damageMarkers": []
+  }
+]

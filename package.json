@@ -1,0 +1,24 @@
+{
+  "name": "al-shaheen-auto-hub",
+  "version": "3.4.0",
+  "description": "Enterprise Workshop Management, 60\" Waiting Lounge TV with YouTube Autoplay, Voice Announcements, and AI Job Cards for Al Shaheen Auto Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "workshop",
+    "job-cards",
+    "automotive",
+    "lounge-tv",
+    "al-shaheen",
+    "gemini-ai"
+  ],
+  "author": "Al Shaheen Auto Hub",
+  "license": "ISC"
+}
