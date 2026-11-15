@@ -23,6 +23,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         refreshDashboard();
     });
 
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'al_shaheen_job_cards_v3') {
+            refreshDashboard();
+        }
+    });
+
     handleInitialNavigation();
 });
 
@@ -414,6 +420,8 @@ async function closeJobCardPayment(cardId) {
     card.paymentCleared = true;
     card.closedAt = new Date().toISOString();
 
+    localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(allCards));
+
     if (window.HubAPI) {
         await window.HubAPI.saveJobCard(card);
         await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
@@ -444,11 +452,11 @@ async function deleteJobCardById(cardId) {
     const conf = confirm(`Are you sure you want to DELETE Job Card ${cardId} (${plate})?\n\nChoose OK if the client cancelled or if this card was created by mistake. This will permanently remove the record.`);
     if (!conf) return;
 
+    allCards = allCards.filter(c => c.id.toLowerCase() !== cardId.toLowerCase());
+    localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(allCards));
+
     if (window.HubAPI) {
         await window.HubAPI.deleteJobCard(cardId);
-    } else {
-        allCards = allCards.filter(c => c.id !== cardId);
-        localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(allCards));
     }
     await refreshDashboard();
     if (window.showToast) window.showToast(`Job Card ${cardId} permanently deleted.`, 'info');

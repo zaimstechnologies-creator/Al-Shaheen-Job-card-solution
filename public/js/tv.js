@@ -34,8 +34,31 @@ document.addEventListener('DOMContentLoaded', () => {
         speakCustomAnnouncement(d.message || 'Attention please: Vehicle is ready for collection.');
     });
 
-    // Auto-refresh queue every 15 seconds
-    setInterval(loadTvQueue, 15000);
+    // Cross-tab storage synchronization
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'al_shaheen_job_cards_v3') {
+            loadTvQueue();
+        }
+    });
+
+    // Cross-tab BroadcastChannel synchronization
+    try {
+        if ('BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('al_shaheen_hub_sync_v2');
+            bc.onmessage = (evt) => {
+                const { type, data } = evt.data || {};
+                if (type === 'update') {
+                    loadTvQueue();
+                } else if (type === 'vehicle_ready' && data && data.plateNo) {
+                    triggerReadyAnnouncement(data.plateNo, data.makeModel, data.customer);
+                    loadTvQueue();
+                }
+            };
+        }
+    } catch (e) {}
+
+    // High-frequency auto-refresh queue every 3 seconds for instant updates on all devices
+    setInterval(loadTvQueue, 3000);
 });
 
 // Live Clock

@@ -119,51 +119,6 @@ function loadCardIntoEditor(card) {
     const advPayEl = document.getElementById('cardAdvance');
     if (advPayEl) advPayEl.value = activeCard.advance || 0;
 
-    // ==========================================================================
-// 6. DELETE & CLOSE PAYMENT WORKFLOWS
-// ==========================================================================
-async function deleteActiveJobCard() {
-    if (!activeCard || !activeCard.id) {
-        if (window.showView) window.showView('dbView');
-        return;
-    }
-    const cardId = activeCard.id;
-    const plate = activeCard.vehicle?.plateNo || 'Vehicle';
-    const conf = confirm(`Are you sure you want to DELETE Job Card ${cardId} (${plate})?\n\nChoose OK if the client cancelled or if this card was created by mistake. This will permanently remove the record.`);
-    if (!conf) return;
-
-    if (window.HubAPI) {
-        await window.HubAPI.deleteJobCard(cardId);
-    }
-    showToast(`Job Card ${cardId} deleted.`, 'info');
-    activeCard = null;
-    if (window.refreshDashboard) await window.refreshDashboard();
-    if (window.showView) window.showView('dbView');
-}
-
-async function closeActiveJobCardPayment() {
-    if (!activeCard || !activeCard.id) return;
-    const cardId = activeCard.id;
-    const plate = activeCard.vehicle?.plateNo || 'Vehicle';
-    const conf = confirm(`Clear payment and mark Job Card ${cardId} (${plate}) as PAID & DELIVERED?\n\nThis vehicle will be closed and removed from the Waiting Lounge TV screen.`);
-    if (!conf) return;
-
-    activeCard.status = 'Paid & Delivered';
-    activeCard.currentBay = 'Delivered (Closed)';
-    activeCard.paymentCleared = true;
-    activeCard.closedAt = new Date().toISOString();
-
-    const statusSel = document.getElementById('cardStatusSelect');
-    if (statusSel) statusSel.value = 'Paid & Delivered';
-
-    if (window.HubAPI) {
-        await window.HubAPI.saveJobCard(activeCard);
-        await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
-    }
-    showToast(`Job Card ${cardId} marked as Paid & Closed. Removed from Lounge TV queue!`, 'success');
-    if (window.refreshDashboard) await window.refreshDashboard();
-    if (window.showView) window.showView('dbView');
-}
 
 // Fuel Slider
     const fuelSlider = document.getElementById('cardFuelSlider');
@@ -787,6 +742,14 @@ async function deleteActiveJobCard() {
     if (window.HubAPI) {
         await window.HubAPI.deleteJobCard(cardId);
     }
+    const raw = localStorage.getItem('al_shaheen_job_cards_v3');
+    if (raw) {
+        try {
+            let cards = JSON.parse(raw);
+            cards = cards.filter(c => c.id !== cardId);
+            localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(cards));
+        } catch (e) {}
+    }
     showToast(`Job Card ${cardId} deleted.`, 'info');
     activeCard = null;
     if (window.refreshDashboard) await window.refreshDashboard();
@@ -811,6 +774,17 @@ async function closeActiveJobCardPayment() {
     if (window.HubAPI) {
         await window.HubAPI.saveJobCard(activeCard);
         await window.HubAPI.updateBay(cardId, 'Delivered (Closed)', 'Paid & Delivered');
+    }
+    const raw = localStorage.getItem('al_shaheen_job_cards_v3');
+    if (raw) {
+        try {
+            let cards = JSON.parse(raw);
+            const idx = cards.findIndex(c => c.id === cardId);
+            if (idx >= 0) {
+                cards[idx] = activeCard;
+                localStorage.setItem('al_shaheen_job_cards_v3', JSON.stringify(cards));
+            }
+        } catch (e) {}
     }
     showToast(`Job Card ${cardId} marked as Paid & Closed. Removed from Lounge TV queue!`, 'success');
     if (window.refreshDashboard) await window.refreshDashboard();
